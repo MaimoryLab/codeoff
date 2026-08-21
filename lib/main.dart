@@ -207,8 +207,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       if (!mounted) return;
       setState(() {
         threads = next;
-        final ids = next.map(_threadId).toSet();
-        selectedThread = ids.contains(selectedThread) ? selectedThread : null;
+        // A newly-created thread can be absent from list results briefly.
       });
     } catch (error) {
       if (mounted) setState(() => message = error.toString());
@@ -524,14 +523,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   Widget _threadEntry(Map<String, dynamic> thread) => ListTile(
     contentPadding: const EdgeInsets.symmetric(vertical: 4),
-    leading: CircleAvatar(
-      radius: 20,
-      backgroundColor: const Color(0xff303136),
-      child: Text(
-        _threadTitle(thread).characters.first.toUpperCase(),
-        style: const TextStyle(fontWeight: FontWeight.w700),
-      ),
-    ),
     title: Text(
       _threadTitle(thread),
       maxLines: 2,
@@ -539,7 +530,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
     ),
     subtitle: Text(_timeLabel(_threadDate(thread))),
-    trailing: const Icon(Icons.chevron_right, color: Colors.white38),
     onTap: () => _openThread(_threadId(thread)),
   );
 
