@@ -261,7 +261,10 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
                       final id = _threadId(thread);
                       return DropdownMenuItem(
                         value: id,
-                        child: Text(id, overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          _threadName(thread),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
                     }).toList(),
                     onChanged: (value) =>
@@ -358,6 +361,14 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   String _threadId(Map<String, dynamic> thread) =>
       '${thread['id'] ?? thread['threadId'] ?? ''}';
+
+  String _threadName(Map<String, dynamic> thread) {
+    for (final key in ['name', 'sessionName', 'title', 'preview']) {
+      final value = thread[key]?.toString().trim() ?? '';
+      if (value.isNotEmpty) return value;
+    }
+    return _threadId(thread);
+  }
 
   String _idFromValue(dynamic value) {
     if (value is! Map) return '';
