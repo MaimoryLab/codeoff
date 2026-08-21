@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'api.dart';
 
@@ -55,6 +56,9 @@ class RemoteHomePage extends StatefulWidget {
 }
 
 class _RemoteHomePageState extends State<RemoteHomePage> {
+  static const endpointKey = 'desktop_endpoint';
+  static const tokenKey = 'device_token';
+  static const secureStorage = FlutterSecureStorage();
   final endpoint = TextEditingController();
   final pairingToken = TextEditingController();
   final deviceName = TextEditingController(text: 'Phone');
@@ -75,6 +79,12 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   String? loadedHistoryFor;
 
   @override
+  void initState() {
+    super.initState();
+    _restoreConnection();
+  }
+
+  @override
   void dispose() {
     eventSubscription?.cancel();
     for (final controller in [
@@ -92,6 +102,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   Future<void> pair() async {
     await _run('Pairing...', () async {
+      await _saveConnection();
       final client = RemoteApi(endpoint.text);
       final value = await client.pair(pairingToken.text, deviceName.text);
       accessToken.text = _stringValue(value, 'token');
@@ -101,6 +112,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   Future<void> connect() async {
     await _run('Connecting...', () async {
+      await _saveConnection();
       final client = RemoteApi(endpoint.text, token: accessToken.text);
       await client.status();
       api = client;
@@ -577,7 +589,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             ),
             const SizedBox(width: 10),
             IconButton(
-              onPressed: busy ? null : () => setState(accessToken.clear),
+              onPressed: busy ? null : _clearToken,
               tooltip: 'Clear token',
               icon: const Icon(Icons.link_off),
             ),
@@ -816,5 +828,45 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   String _stringValue(dynamic value, String key) {
     if (value is Map && value[key] != null) return '${value[key]}';
     return '';
+  }
+
+  Future<void> _restoreConnection() async {
+    try {
+      final savedEndpoint = await secureStorage.read(key: endpointKey);
+      final savedToken = await secureStorage.read(key: tokenKey);
+      if (!mounted) return;
+      if (endpoint.text.isEmpty && savedEndpoint != null) {
+        endpoint.text = savedEndpoint;
+      }
+      if (accessToken.text.isEmpty && savedToken != null) {
+        accessToken.text = savedToken;
+      }
+    } catch (_) {
+      // Stored connection settings are optional; the user can enter them again.
+    }
+  }
+
+  Future<void> _saveConnection() async {
+    try {
+      final endpointValue = endpoint.text.trim();
+      if (endpointValue.isEmpty) {
+        await secureStorage.delete(key: endpointKey);
+      } else {
+        await secureStorage.write(key: endpointKey, value: endpointValue);
+      }
+      final tokenValue = accessToken.text.trim();
+      if (tokenValue.isEmpty) {
+        await secureStorage.delete(key: tokenKey);
+      } else {
+        await secureStorage.write(key: tokenKey, value: tokenValue);
+      }
+    } catch (_) {
+      // A storage failure must not prevent an otherwise valid connection.
+    }
+  }
+
+  void _clearToken() {
+    setState(accessToken.clear);
+    unawaited(secureStorage.delete(key: tokenKey));
   }
 }
