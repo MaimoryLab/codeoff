@@ -26,7 +26,14 @@ class RemoteApi {
 
   Future<dynamic> status() => _request('GET', '/api/v1/status');
 
-  Future<dynamic> threads() => _request('GET', '/api/v1/threads');
+  Future<dynamic> threads({String? cursor, int? limit}) => _request(
+    'GET',
+    '/api/v1/threads',
+    query: {
+      if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      if (limit != null) 'limit': '$limit',
+    },
+  );
 
   Future<dynamic> thread(String threadId) =>
       _request('GET', '/api/v1/threads/$threadId');
@@ -72,18 +79,23 @@ class RemoteApi {
     }
   }
 
-  Uri _uri(String path) =>
-      base.resolve(path.startsWith('/') ? path.substring(1) : path);
+  Uri _uri(String path, [Map<String, String>? query]) {
+    final uri = base.resolve(path.startsWith('/') ? path.substring(1) : path);
+    return query == null || query.isEmpty
+        ? uri
+        : uri.replace(queryParameters: {...uri.queryParameters, ...query});
+  }
 
   Future<dynamic> _request(
     String method,
     String path, {
     Map<String, dynamic>? body,
+    Map<String, String>? query,
     bool auth = true,
   }) async {
     final client = HttpClient();
     try {
-      final request = await client.openUrl(method, _uri(path));
+      final request = await client.openUrl(method, _uri(path, query));
       if (auth) _authorize(request);
       request.headers.contentType = ContentType.json;
       if (body != null) request.write(jsonEncode(body));
