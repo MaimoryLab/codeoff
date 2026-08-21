@@ -707,17 +707,25 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   List<Map<String, dynamic>> _historyItems(dynamic value) {
     if (value is Map) {
-      for (final key in ['items', 'messages', 'turns']) {
+      if (value['thread'] != null) return _historyItems(value['thread']);
+      if (value['turns'] is List) return _historyItems(value['turns']);
+      for (final key in ['items', 'messages']) {
         if (value[key] is List) return _historyItems(value[key]);
       }
-      if (value['thread'] != null) return _historyItems(value['thread']);
+      final item = Map<String, dynamic>.from(value);
+      return _messageText(item).isEmpty ? [] : [item];
     }
     if (value is List) {
-      return value
-          .whereType<Map>()
-          .map((item) => Map<String, dynamic>.from(item))
-          .where((item) => _messageText(item).isNotEmpty)
-          .toList();
+      final items = <Map<String, dynamic>>[];
+      for (final raw in value.whereType<Map>()) {
+        final item = Map<String, dynamic>.from(raw);
+        if (item['items'] is List) {
+          items.addAll(_historyItems(item['items']));
+        } else if (_messageText(item).isNotEmpty) {
+          items.add(item);
+        }
+      }
+      return items;
     }
     return [];
   }
