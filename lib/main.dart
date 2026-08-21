@@ -67,6 +67,8 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   final search = TextEditingController();
   RemoteApi? api;
   StreamSubscription<Map<String, dynamic>>? eventSubscription;
+  Timer? threadRefreshTimer;
+  Future<void>? threadReload;
   List<Map<String, dynamic>> threads = [];
   List<Map<String, dynamic>> approvals = [];
   List<Map<String, dynamic>> history = [];
@@ -87,6 +89,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   @override
   void dispose() {
     eventSubscription?.cancel();
+    threadRefreshTimer?.cancel();
     for (final controller in [
       endpoint,
       pairingToken,
@@ -119,6 +122,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       connected = true;
       await _reloadThreads();
       _listenEvents(client);
+      _startThreadRefresh();
       settingsOpen = false;
       message = 'Connected';
     });
@@ -154,24 +158,50 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     );
   }
 
-  Future<void> _reloadThreads() async {
-    final value = await api!.threads();
-    final list = value is Map ? value['data'] ?? value['threads'] : value;
-    final seen = <String>{};
-    final next = list is List
-        ? list
-              .whereType<Map>()
-              .map((item) => Map<String, dynamic>.from(item))
-              .where((thread) => seen.add(_threadId(thread)))
-              .where((thread) => _threadId(thread).isNotEmpty)
-              .toList()
-        : <Map<String, dynamic>>[];
-    next.sort((a, b) => _threadDate(b).compareTo(_threadDate(a)));
-    if (!mounted) return;
-    setState(() {
-      threads = next;
-      final ids = next.map(_threadId).toSet();
-      selectedThread = ids.contains(selectedThread) ? selectedThread : null;
+  Future<void> _reloadThreads() {
+    final current = threadReload;
+    if (current != null) return current;
+    final future = _performThreadReload();
+    threadReload = future;
+    unawaited(
+      future.whenComplete(() {
+        if (identical(threadReload, future)) threadReload = null;
+      }),
+    );
+    return future;
+  }
+
+  Future<void> _performThreadReload() async {
+    final client = api;
+    if (client == null) return;
+    try {
+      final value = await client.threads();
+      final list = value is Map ? value['data'] ?? value['threads'] : value;
+      final seen = <String>{};
+      final next = list is List
+          ? list
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .where((thread) => seen.add(_threadId(thread)))
+                .where((thread) => _threadId(thread).isNotEmpty)
+                .toList()
+          : <Map<String, dynamic>>[];
+      next.sort((a, b) => _threadDate(b).compareTo(_threadDate(a)));
+      if (!mounted) return;
+      setState(() {
+        threads = next;
+        final ids = next.map(_threadId).toSet();
+        selectedThread = ids.contains(selectedThread) ? selectedThread : null;
+      });
+    } catch (error) {
+      if (mounted) setState(() => message = error.toString());
+    }
+  }
+
+  void _startThreadRefresh() {
+    threadRefreshTimer?.cancel();
+    threadRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (connected) unawaited(_reloadThreads());
     });
   }
 
@@ -295,6 +325,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           message = error.toString();
           connected = false;
         });
+        threadRefreshTimer?.cancel();
       }
     } finally {
       if (mounted) setState(() => busy = false);
@@ -430,32 +461,45 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           ),
         ),
         Expanded(
-          child: groups.isEmpty
-              ? _emptyState(
-                  connected
-                      ? 'No threads yet'
-                      : 'Connect from Settings to begin',
-                  Icons.forum_outlined,
-                )
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                  children: [
-                    for (final entry in groups.entries) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(top: 18, bottom: 8),
-                        child: Text(
-                          entry.key,
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
+          child: RefreshIndicator(
+            onRefresh: _reloadThreads,
+            child: groups.isEmpty
+                ? ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                    children: [
+                      SizedBox(
+                        height: 240,
+                        child: _emptyState(
+                          connected
+                              ? 'No threads yet'
+                              : 'Connect from Settings to begin',
+                          Icons.forum_outlined,
                         ),
                       ),
-                      for (final thread in entry.value) _threadEntry(thread),
                     ],
-                  ],
-                ),
+                  )
+                : ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+                    children: [
+                      for (final entry in groups.entries) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(top: 18, bottom: 8),
+                          child: Text(
+                            entry.key,
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        for (final thread in entry.value) _threadEntry(thread),
+                      ],
+                    ],
+                  ),
+          ),
         ),
       ],
     );
