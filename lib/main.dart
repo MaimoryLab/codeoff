@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 
 import 'api.dart';
 
@@ -124,7 +125,16 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             message = 'Approval requested';
           });
         }
-        if (method.contains('turn/')) _loadHistory(selectedThread, force: true);
+        final params = event['params'] is Map
+            ? Map<String, dynamic>.from(event['params'] as Map)
+            : <String, dynamic>{};
+        final threadId = '${params['threadId'] ?? ''}';
+        if (method == 'item/agentMessage/delta' && threadId == selectedThread) {
+          _appendAssistantDelta(params);
+        }
+        if (method == 'turn/completed' && threadId == selectedThread) {
+          _loadHistory(selectedThread, force: true);
+        }
       },
       onError: (Object error) {
         if (mounted) setState(() => message = error.toString());
@@ -167,18 +177,40 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     final text = input.text.trim();
     if (id == null || text.isEmpty) return;
     await _run('Sending...', () async {
+      if (!mounted || selectedThread != id) return;
+      setState(() {
+        input.clear();
+        history = [
+          ...history,
+          {'role': 'user', 'content': text},
+        ];
+        message = 'Turn started';
+      });
       final thread = threads.firstWhere(
         (item) => _threadId(item) == id,
         orElse: () => <String, dynamic>{},
       );
       if (_threadNeedsResume(thread)) await api!.resumeThread(id);
       await api!.startTurn(id, text);
-      input.clear();
-      history = [
-        ...history,
-        {'role': 'user', 'content': text},
-      ];
-      message = 'Turn started';
+    });
+  }
+
+  void _appendAssistantDelta(Map<String, dynamic> params) {
+    final delta = '${params['delta'] ?? ''}';
+    final itemId = '${params['itemId'] ?? ''}';
+    if (delta.isEmpty || itemId.isEmpty || !mounted) return;
+    setState(() {
+      final index = history.indexWhere((item) => item['id'] == itemId);
+      if (index == -1) {
+        history = [
+          ...history,
+          {'id': itemId, 'type': 'agentMessage', 'text': delta},
+        ];
+        return;
+      }
+      final item = Map<String, dynamic>.from(history[index]);
+      item['text'] = '${item['text'] ?? ''}$delta';
+      history = [...history]..[index] = item;
     });
   }
 
@@ -500,7 +532,11 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           color: user ? const Color(0xff9f6148) : const Color(0xff292a2e),
           borderRadius: BorderRadius.circular(18),
         ),
-        child: Text(_messageText(item)),
+        child: MarkdownBody(
+          data: _messageText(item),
+          selectable: true,
+          styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)),
+        ),
       ),
     );
   }
