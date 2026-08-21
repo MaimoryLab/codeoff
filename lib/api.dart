@@ -28,6 +28,9 @@ class RemoteApi {
 
   Future<dynamic> threads() => _request('GET', '/api/v1/threads');
 
+  Future<dynamic> thread(String threadId) =>
+      _request('GET', '/api/v1/threads/$threadId');
+
   Future<dynamic> startThread() =>
       _request('POST', '/api/v1/threads', body: {});
 
