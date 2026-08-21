@@ -6,6 +6,23 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'api.dart';
 
+DateTime? parseRemoteTimestamp(dynamic value) {
+  if (value is num) return _unixTimestamp(value);
+  final text = '${value ?? ''}'.trim();
+  if (text.isEmpty) return null;
+  final numeric = num.tryParse(text);
+  if (numeric != null) return _unixTimestamp(numeric);
+  return DateTime.tryParse(text)?.toLocal();
+}
+
+DateTime _unixTimestamp(num value) {
+  final milliseconds = value.abs() < 100000000000 ? value * 1000 : value;
+  return DateTime.fromMillisecondsSinceEpoch(
+    milliseconds.round(),
+    isUtc: true,
+  ).toLocal();
+}
+
 void main() => runApp(const CodexRemoteApp());
 
 class CodexRemoteApp extends StatelessWidget {
@@ -778,8 +795,8 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       'createdAt',
       'timestamp',
     ]) {
-      final parsed = DateTime.tryParse('${thread[key]}');
-      if (parsed != null) return parsed.toLocal();
+      final parsed = parseRemoteTimestamp(thread[key]);
+      if (parsed != null) return parsed;
     }
     return DateTime.fromMillisecondsSinceEpoch(0);
   }
