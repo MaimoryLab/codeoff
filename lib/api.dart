@@ -31,6 +31,9 @@ class RemoteApi {
   Future<dynamic> startThread() =>
       _request('POST', '/api/v1/threads', body: {});
 
+  Future<dynamic> resumeThread(String threadId) =>
+      _request('POST', '/api/v1/threads/$threadId/resume', body: {});
+
   Future<dynamic> startTurn(String threadId, String input) => _request(
     'POST',
     '/api/v1/threads/$threadId/turns',

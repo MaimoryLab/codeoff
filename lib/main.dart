@@ -141,6 +141,11 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     final id = selectedThread;
     if (id == null || input.text.trim().isEmpty) return;
     await _run('Sending...', () async {
+      final thread = threads.firstWhere(
+        (item) => _threadId(item) == id,
+        orElse: () => <String, dynamic>{},
+      );
+      if (_threadNeedsResume(thread)) await api!.resumeThread(id);
       await api!.startTurn(id, input.text.trim());
       input.clear();
       message = 'Turn started';
@@ -368,6 +373,11 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       if (value.isNotEmpty) return value;
     }
     return _threadId(thread);
+  }
+
+  bool _threadNeedsResume(Map<String, dynamic> thread) {
+    final status = thread['status'];
+    return status is Map && status['type'] == 'notLoaded';
   }
 
   String _idFromValue(dynamic value) {
