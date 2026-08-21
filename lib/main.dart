@@ -76,6 +76,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   static const endpointKey = 'desktop_endpoint';
   static const tokenKey = 'device_token';
   static const secureStorage = FlutterSecureStorage();
+  static const threadPageSize = 100;
   final endpoint = TextEditingController();
   final pairingToken = TextEditingController();
   final deviceName = TextEditingController(text: 'Phone');
@@ -90,6 +91,8 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   List<Map<String, dynamic>> approvals = [];
   List<Map<String, dynamic>> history = [];
   String? selectedThread;
+  String? selectedProject;
+  bool projectsView = false;
   String message = 'Enter the desktop endpoint to begin.';
   bool busy = false;
   bool connected = false;
@@ -192,17 +195,34 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     final client = api;
     if (client == null) return;
     try {
-      final value = await client.threads();
-      final list = value is Map ? value['data'] ?? value['threads'] : value;
+      final pages = <Map<String, dynamic>>[];
+      String? cursor;
+      do {
+        final value = await client.threads(
+          cursor: cursor,
+          limit: threadPageSize,
+        );
+        final list = value is Map ? value['data'] ?? value['threads'] : value;
+        if (list is List) {
+          pages.addAll(
+            list.whereType<Map>().map(
+              (item) => Map<String, dynamic>.from(item),
+            ),
+          );
+        }
+        final next = value is Map
+            ? '${value['nextCursor'] ?? value['next_cursor'] ?? ''}'
+            : '';
+        if (next.isEmpty || next == cursor || list is! List || list.isEmpty) {
+          break;
+        }
+        cursor = next;
+      } while (true);
       final seen = <String>{};
-      final next = list is List
-          ? list
-                .whereType<Map>()
-                .map((item) => Map<String, dynamic>.from(item))
-                .where((thread) => seen.add(_threadId(thread)))
-                .where((thread) => _threadId(thread).isNotEmpty)
-                .toList()
-          : <Map<String, dynamic>>[];
+      final next = pages
+          .where((thread) => _threadId(thread).isNotEmpty)
+          .where((thread) => seen.add(_threadId(thread)))
+          .toList();
       next.sort((a, b) => _threadDate(b).compareTo(_threadDate(a)));
       if (!mounted) return;
       setState(() {
@@ -304,6 +324,8 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   void _openThread(String id) {
     setState(() {
       selectedThread = id;
+      selectedProject = null;
+      projectsView = false;
       settingsOpen = false;
       loadedHistoryFor = null;
       history = [];
@@ -316,6 +338,8 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     setState(() {
       settingsOpen = true;
       selectedThread = null;
+      selectedProject = null;
+      projectsView = false;
     });
   }
 
@@ -324,6 +348,38 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     setState(() {
       settingsOpen = false;
       selectedThread = null;
+      selectedProject = null;
+      projectsView = false;
+    });
+  }
+
+  void _showRecent() {
+    Navigator.of(context).maybePop();
+    setState(() {
+      settingsOpen = false;
+      selectedThread = null;
+      selectedProject = null;
+      projectsView = false;
+    });
+  }
+
+  void _showProjects() {
+    Navigator.of(context).maybePop();
+    setState(() {
+      settingsOpen = false;
+      selectedThread = null;
+      selectedProject = null;
+      projectsView = true;
+    });
+  }
+
+  void _selectProject(String project) {
+    Navigator.of(context).maybePop();
+    setState(() {
+      settingsOpen = false;
+      selectedThread = null;
+      selectedProject = project;
+      projectsView = false;
     });
   }
 
@@ -369,7 +425,9 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
               ? 'Settings'
               : detail
               ? _threadTitle(selectedThread!)
-              : 'Threads',
+              : projectsView
+              ? 'Projects'
+              : selectedProject ?? 'Recent',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -386,6 +444,8 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           ? _settingsView()
           : detail
           ? _threadView()
+          : projectsView
+          ? _projectsView()
           : _threadsView(),
       floatingActionButton: !settingsOpen && !detail && connected
           ? FloatingActionButton(
@@ -404,7 +464,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Padding(
-            padding: EdgeInsets.fromLTRB(24, 24, 24, 30),
+            padding: EdgeInsets.fromLTRB(24, 24, 24, 20),
             child: Row(
               children: [
                 CircleAvatar(
@@ -419,21 +479,45 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
               ],
             ),
           ),
-          _drawerItem(
-            Icons.forum_outlined,
-            'Threads',
-            !settingsOpen,
-            _showThreads,
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              children: [
+                _drawerItem(Icons.add, 'New', false, () {
+                  Navigator.pop(context);
+                  if (!busy) createThread();
+                }),
+                const Divider(height: 24),
+                _drawerLabel('Recent'),
+                for (final thread in threads.take(5))
+                  _recentEntry(context, thread),
+                if (threads.length > 5)
+                  _moreEntry('More recent chats', _showRecent),
+                if (threads.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
+                    child: Text(
+                      'No recent chats',
+                      style: TextStyle(color: Colors.white38),
+                    ),
+                  ),
+                const Divider(height: 24),
+                _drawerLabel('Projects'),
+                for (final project in _projects().take(5))
+                  _projectEntry(context, project),
+                if (_projects().length > 5)
+                  _moreEntry('More projects', _showProjects),
+                if (_projects().isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
+                    child: Text(
+                      'No projects',
+                      style: TextStyle(color: Colors.white38),
+                    ),
+                  ),
+              ],
+            ),
           ),
-          if (approvals.isNotEmpty)
-            _drawerItem(Icons.verified_outlined, 'Approvals', false, () {
-              Navigator.pop(context);
-              setState(() {
-                settingsOpen = false;
-                selectedThread = null;
-              });
-            }),
-          const Spacer(),
           const Divider(height: 1),
           _drawerItem(
             Icons.settings_outlined,
@@ -445,6 +529,51 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         ],
       ),
     ),
+  );
+
+  Widget _drawerLabel(String label) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: Colors.white60,
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
+
+  Widget _recentEntry(BuildContext context, Map<String, dynamic> thread) =>
+      ListTile(
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+        title: Text(
+          _threadTitle(thread),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: _threadMeta(thread),
+        onTap: () {
+          Navigator.pop(context);
+          _openThread(_threadId(thread));
+        },
+      );
+
+  Widget _projectEntry(BuildContext context, String project) => ListTile(
+    dense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+    leading: const Icon(Icons.folder_outlined, size: 20),
+    title: Text(project, overflow: TextOverflow.ellipsis),
+    selected: selectedProject == project && selectedThread == null,
+    onTap: () => _selectProject(project),
+  );
+
+  Widget _moreEntry(String label, VoidCallback onTap) => ListTile(
+    dense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+    leading: const Icon(Icons.more_horiz),
+    title: Text(label),
+    trailing: const Icon(Icons.chevron_right, size: 18),
+    onTap: onTap,
   );
 
   Widget _drawerItem(
@@ -462,7 +591,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   );
 
   Widget _threadsView() {
-    final groups = _groupedThreads();
+    final visible = _visibleThreads();
     return Column(
       children: [
         Padding(
@@ -479,7 +608,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         Expanded(
           child: RefreshIndicator(
             onRefresh: _reloadThreads,
-            child: groups.isEmpty
+            child: visible.isEmpty
                 ? ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
@@ -499,25 +628,44 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                     children: [
-                      for (final entry in groups.entries) ...[
-                        Padding(
-                          padding: const EdgeInsets.only(top: 18, bottom: 8),
-                          child: Text(
-                            entry.key,
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        for (final thread in entry.value) _threadEntry(thread),
-                      ],
+                      for (final thread in visible) _threadEntry(thread),
                     ],
                   ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _projectsView() {
+    final projects = _projects();
+    return RefreshIndicator(
+      onRefresh: _reloadThreads,
+      child: projects.isEmpty
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                SizedBox(
+                  height: 240,
+                  child: _emptyState('No projects yet', Icons.folder_outlined),
+                ),
+              ],
+            )
+          : ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+              itemCount: projects.length,
+              itemBuilder: (context, index) => ListTile(
+                contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                leading: const Icon(Icons.folder_outlined),
+                title: Text(
+                  projects[index],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                onTap: () => _selectProject(projects[index]),
+              ),
+            ),
     );
   }
 
@@ -529,8 +677,23 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       overflow: TextOverflow.ellipsis,
       style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
     ),
-    subtitle: Text(_timeLabel(_threadDate(thread))),
+    subtitle: _threadMeta(thread),
     onTap: () => _openThread(_threadId(thread)),
+  );
+
+  Widget _threadMeta(Map<String, dynamic> thread) => Row(
+    children: [
+      Expanded(child: Text(_timeLabel(_threadDate(thread)))),
+      if (_threadProject(thread).isNotEmpty)
+        Flexible(
+          child: Text(
+            _threadProject(thread),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+          ),
+        ),
+    ],
   );
 
   Widget _threadView() => Column(
@@ -741,25 +904,19 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     ),
   );
 
-  Map<String, List<Map<String, dynamic>>> _groupedThreads() {
-    final groups = <String, List<Map<String, dynamic>>>{};
+  List<Map<String, dynamic>> _visibleThreads() {
     final query = search.text.trim().toLowerCase();
-    for (final thread in threads) {
+    return threads.where((thread) {
+      if (selectedProject != null &&
+          _threadProject(thread) != selectedProject) {
+        return false;
+      }
       if (query.isNotEmpty &&
           !_threadTitle(thread).toLowerCase().contains(query)) {
-        continue;
+        return false;
       }
-      final age = DateTime.now().difference(_threadDate(thread));
-      final group = age <= const Duration(days: 1)
-          ? 'Today'
-          : age <= const Duration(days: 7)
-          ? 'Previous 7 days'
-          : age <= const Duration(days: 30)
-          ? 'Previous 30 days'
-          : 'Older';
-      groups.putIfAbsent(group, () => []).add(thread);
-    }
-    return groups;
+      return true;
+    }).toList();
   }
 
   String _threadId(Map<String, dynamic> thread) =>
@@ -776,6 +933,38 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       if (value.isNotEmpty) return value;
     }
     return _threadId(Map<String, dynamic>.from(thread));
+  }
+
+  List<String> _projects() {
+    final latest = <String, DateTime>{};
+    for (final thread in threads) {
+      final project = _threadProject(thread);
+      if (project.isEmpty) continue;
+      final date = _threadDate(thread);
+      final previous = latest[project];
+      if (previous == null || date.isAfter(previous)) latest[project] = date;
+    }
+    final projects = latest.keys.toList()
+      ..sort((a, b) {
+        final result = latest[b]!.compareTo(latest[a]!);
+        return result != 0 ? result : a.compareTo(b);
+      });
+    return projects;
+  }
+
+  String _threadProject(Map<String, dynamic> thread) {
+    for (final key in ['projectName', 'project']) {
+      final value = thread[key];
+      if (value is Map) {
+        final name = '${value['name'] ?? value['title'] ?? ''}'.trim();
+        if (name.isNotEmpty) return name;
+      }
+      final name = '$value'.trim();
+      if (name.isNotEmpty && name != 'null') return name;
+    }
+    final cwd = '${thread['cwd'] ?? ''}'.trim();
+    if (cwd.isEmpty || cwd == 'null') return '';
+    return cwd.split(RegExp(r'[/\\]')).last;
   }
 
   DateTime _threadDate(Map<String, dynamic> thread) {
