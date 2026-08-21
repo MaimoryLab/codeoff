@@ -473,43 +473,47 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
               ],
             ),
           ),
+          _drawerItem(Icons.add, 'New', false, () {
+            Navigator.pop(context);
+            if (!busy) createThread();
+          }),
+          const Divider(height: 24),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              children: [
-                _drawerItem(Icons.add, 'New', false, () {
-                  Navigator.pop(context);
-                  if (!busy) createThread();
-                }),
-                const Divider(height: 24),
-                _drawerLabel('Recent'),
-                for (final thread in threads.take(5))
-                  _recentEntry(context, thread),
-                if (threads.length > 5)
-                  _moreEntry('More recent chats', _showRecent),
-                if (threads.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
-                    child: Text(
-                      'No recent chats',
-                      style: TextStyle(color: Colors.white38),
+            child: RefreshIndicator(
+              onRefresh: _reloadThreads,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                children: [
+                  _drawerLabel('Recent'),
+                  for (final thread in threads.take(5))
+                    _recentEntry(context, thread),
+                  if (threads.length > 5)
+                    _moreEntry('More recent chats', _showRecent),
+                  if (threads.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
+                      child: Text(
+                        'No recent chats',
+                        style: TextStyle(color: Colors.white38),
+                      ),
                     ),
-                  ),
-                const Divider(height: 24),
-                _drawerLabel('Projects'),
-                for (final project in _projects().take(5))
-                  _projectEntry(context, project),
-                if (_projects().length > 5)
-                  _moreEntry('More projects', _showProjects),
-                if (_projects().isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
-                    child: Text(
-                      'No projects',
-                      style: TextStyle(color: Colors.white38),
+                  const Divider(height: 24),
+                  _drawerLabel('Projects'),
+                  for (final project in _projects().take(5))
+                    _projectEntry(context, project),
+                  if (_projects().length > 5)
+                    _moreEntry('More projects', _showProjects),
+                  if (_projects().isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
+                      child: Text(
+                        'No projects',
+                        style: TextStyle(color: Colors.white38),
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
           const Divider(height: 1),
@@ -974,16 +978,13 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   }
 
   String _threadProject(Map<String, dynamic> thread) {
-    for (final key in ['projectName', 'project']) {
-      final value = thread[key];
-      if (value is Map) {
-        final name = '${value['name'] ?? value['title'] ?? ''}'.trim();
-        if (name.isNotEmpty) return name;
-      }
-      final name = '$value'.trim();
-      if (name.isNotEmpty && name != 'null') return name;
+    final value = thread['projectName'];
+    if (value is Map) {
+      final name = '${value['name'] ?? value['title'] ?? ''}'.trim();
+      if (name.isNotEmpty) return name;
     }
-    return '';
+    final name = '$value'.trim();
+    return name.isEmpty || name == 'null' ? '' : name;
   }
 
   DateTime _threadDate(Map<String, dynamic> thread) {
