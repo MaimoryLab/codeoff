@@ -106,10 +106,13 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   Future<void> _reloadThreads() async {
     final value = await api!.threads();
     final list = value is Map ? value['data'] ?? value['threads'] : value;
+    final seen = <String>{};
     final next = list is List
         ? list
               .whereType<Map>()
               .map((item) => Map<String, dynamic>.from(item))
+              .where((thread) => seen.add(_threadId(thread)))
+              .where((thread) => _threadId(thread).isNotEmpty)
               .toList()
         : <Map<String, dynamic>>[];
     setState(() {
@@ -128,7 +131,9 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       final value = await api!.startThread();
       final id = _idFromValue(value);
       await _reloadThreads();
-      if (id.isNotEmpty) setState(() => selectedThread = id);
+      if (threads.any((thread) => _threadId(thread) == id)) {
+        setState(() => selectedThread = id);
+      }
     });
   }
 
@@ -245,7 +250,12 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
                 Expanded(
                   child: DropdownButton<String>(
                     isExpanded: true,
-                    value: selectedThread,
+                    value:
+                        threads.any(
+                          (thread) => _threadId(thread) == selectedThread,
+                        )
+                        ? selectedThread
+                        : null,
                     hint: const Text('Select a thread'),
                     items: threads.map((thread) {
                       final id = _threadId(thread);
