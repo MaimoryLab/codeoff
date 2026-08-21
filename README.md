@@ -1,17 +1,17 @@
-# codex_remote
+# Codex Remote Mobile
 
-A new Flutter project.
+Flutter client for the local Codex Remote desktop bridge.
 
-## Getting Started
+1. Start the desktop app and start its Cloudflare Tunnel.
+2. Copy the tunnel endpoint and one-time pairing code from the desktop panel.
+3. Enter both in the mobile app and tap `Pair`.
+4. Use the returned device token to reconnect later, list or start threads, send turns, and answer approval requests.
 
-This project is a starting point for a Flutter application.
+Run checks locally:
 
-A few resources to get you started if this is your first Flutter project:
+```sh
+dart analyze
+flutter test --no-pub
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+The client uses Dart's standard `HttpClient`; no third-party networking or state-management package is required.
