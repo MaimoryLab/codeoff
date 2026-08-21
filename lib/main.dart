@@ -962,9 +962,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       final name = '$value'.trim();
       if (name.isNotEmpty && name != 'null') return name;
     }
-    final cwd = '${thread['cwd'] ?? ''}'.trim();
-    if (cwd.isEmpty || cwd == 'null') return '';
-    return cwd.split(RegExp(r'[/\\]')).last;
+    return '';
   }
 
   DateTime _threadDate(Map<String, dynamic> thread) {
