@@ -424,7 +424,13 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             ? const Text('Settings')
             : detail
             ? _threadAppBarTitle(selectedThread!)
-            : Text(projectsView ? 'Projects' : selectedProject ?? 'Recent'),
+            : Text(
+                projectsView
+                    ? 'Projects'
+                    : selectedProject == null
+                    ? 'Recent'
+                    : _projectLabel(selectedProject!),
+              ),
         actions: [
           Icon(
             connected ? Icons.cloud_done : Icons.cloud_off,
@@ -560,7 +566,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     dense: true,
     contentPadding: const EdgeInsets.symmetric(horizontal: 16),
     leading: const Icon(Icons.folder_outlined, size: 20),
-    title: Text(project, overflow: TextOverflow.ellipsis),
+    title: Text(_projectLabel(project), overflow: TextOverflow.ellipsis),
     selected: selectedProject == project && selectedThread == null,
     onTap: () => _selectProject(project),
   );
@@ -657,7 +663,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
                 contentPadding: const EdgeInsets.symmetric(vertical: 4),
                 leading: const Icon(Icons.folder_outlined),
                 title: Text(
-                  projects[index],
+                  _projectLabel(projects[index]),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -703,7 +709,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       if (_threadProject(thread).isNotEmpty)
         Flexible(
           child: Text(
-            _threadProject(thread),
+            _projectLabel(_threadProject(thread)),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
@@ -978,13 +984,22 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   }
 
   String _threadProject(Map<String, dynamic> thread) {
-    final value = thread['projectName'];
-    if (value is Map) {
-      final name = '${value['name'] ?? value['title'] ?? ''}'.trim();
-      if (name.isNotEmpty) return name;
+    for (final key in ['projectName', 'project']) {
+      final value = thread[key];
+      if (value is Map) {
+        final name = '${value['name'] ?? value['title'] ?? ''}'.trim();
+        if (name.isNotEmpty) return name;
+      }
+      final name = '$value'.trim();
+      if (name.isNotEmpty && name != 'null') return name;
     }
-    final name = '$value'.trim();
-    return name.isEmpty || name == 'null' ? '' : name;
+    final cwd = '${thread['cwd'] ?? ''}'.trim();
+    return cwd.isEmpty || cwd == 'null' ? '' : cwd;
+  }
+
+  String _projectLabel(String project) {
+    if (!project.contains('/') && !project.contains('\\')) return project;
+    return project.split(RegExp(r'[/\\]')).last;
   }
 
   DateTime _threadDate(Map<String, dynamic> thread) {
