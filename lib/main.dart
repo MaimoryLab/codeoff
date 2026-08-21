@@ -420,17 +420,11 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
                 : () => Scaffold.of(context).openDrawer(),
           ),
         ),
-        title: Text(
-          settingsOpen
-              ? 'Settings'
-              : detail
-              ? _threadTitle(selectedThread!)
-              : projectsView
-              ? 'Projects'
-              : selectedProject ?? 'Recent',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+        title: settingsOpen
+            ? const Text('Settings')
+            : detail
+            ? _threadAppBarTitle(selectedThread!)
+            : Text(projectsView ? 'Projects' : selectedProject ?? 'Recent'),
         actions: [
           Icon(
             connected ? Icons.cloud_done : Icons.cloud_off,
@@ -681,6 +675,24 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     onTap: () => _openThread(_threadId(thread)),
   );
 
+  Widget _threadAppBarTitle(String id) {
+    final cwd = _threadCwd(id);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(_threadTitle(id), maxLines: 1, overflow: TextOverflow.ellipsis),
+        if (cwd.isNotEmpty)
+          Text(
+            cwd,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 11, color: Colors.white54),
+          ),
+      ],
+    );
+  }
+
   Widget _threadMeta(Map<String, dynamic> thread) => Row(
     children: [
       Expanded(child: Text(_timeLabel(_threadDate(thread)))),
@@ -921,6 +933,15 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   String _threadId(Map<String, dynamic> thread) =>
       '${thread['id'] ?? thread['threadId'] ?? ''}';
+
+  String _threadCwd(String id) {
+    for (final thread in threads) {
+      if (_threadId(thread) != id) continue;
+      final cwd = '${thread['cwd'] ?? ''}'.trim();
+      if (cwd.isNotEmpty && cwd != 'null') return cwd;
+    }
+    return '';
+  }
 
   String _threadTitle(dynamic thread) {
     if (thread is String) {
