@@ -48,11 +48,16 @@ class RemoteApi {
 
   final Uri base;
   String? token;
+  final _events = StreamController<Map<String, dynamic>>.broadcast();
+  final _pending = <int, Completer<dynamic>>{};
+  WebSocket? _socket;
+  StreamSubscription<dynamic>? _socketSubscription;
+  Future<void>? _connecting;
+  int _nextRequestId = 0;
 
-  Future<dynamic> pair(String pairingToken, String name) => _request(
+  Future<dynamic> pair(String pairingToken, String name) => _httpRequest(
     'POST',
     '/api/v1/pair/exchange',
-    auth: false,
     body: {'token': pairingToken, 'name': name},
   );
 
@@ -125,35 +130,20 @@ class RemoteApi {
     body: _turnBody(input, attachments),
   );
 
-  Future<RemoteAttachment> upload(
-    String name,
-    Stream<List<int>> bytes,
-    int length,
-  ) async {
-    final client = HttpClient();
-    try {
-      final request = await client.postUrl(
-        _uri('/api/v1/files', {'name': name}),
-      );
-      _authorize(request);
-      request.contentLength = length;
-      request.headers.contentType = ContentType('application', 'octet-stream');
-      await request.addStream(bytes);
-      final response = await request.close();
-      final text = await response.transform(utf8.decoder).join();
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw ApiException(
-          text.isEmpty ? 'Upload failed (${response.statusCode})' : text.trim(),
-          statusCode: response.statusCode,
-        );
-      }
-      final value = jsonDecode(text) as Map<String, dynamic>;
-      return RemoteAttachment(name: name, path: '${value['path'] ?? ''}');
-    } on SocketException catch (error) {
-      throw ApiException(error.message);
-    } finally {
-      client.close(force: true);
+  Future<RemoteAttachment> upload(String name, Stream<List<int>> bytes) async {
+    final chunks = await bytes.toList();
+    final data = <int>[];
+    for (final chunk in chunks) {
+      data.addAll(chunk);
     }
+    final value = await _request(
+      'POST',
+      '/api/v1/files',
+      query: {'name': name},
+      binary: base64Encode(data),
+      contentType: ContentType('application', 'octet-stream').mimeType,
+    ) as Map<String, dynamic>;
+    return RemoteAttachment(name: name, path: '${value['path'] ?? ''}');
   }
 
   Map<String, dynamic> _turnBody(
@@ -178,24 +168,17 @@ class RemoteApi {
   }
 
   Stream<Map<String, dynamic>> events() async* {
-    final client = HttpClient();
-    try {
-      final request = await client.getUrl(_uri('/api/v1/events'));
-      _authorize(request);
-      request.headers.set(HttpHeaders.acceptHeader, 'text/event-stream');
-      final response = await request.close();
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw ApiException('Events failed (${response.statusCode})');
-      }
-      await for (final line
-          in response.transform(utf8.decoder).transform(const LineSplitter())) {
-        if (!line.startsWith('data: ')) continue;
-        final value = jsonDecode(line.substring(6));
-        if (value is Map<String, dynamic>) yield value;
-      }
-    } finally {
-      client.close(force: true);
-    }
+    await _ensureConnected();
+    yield* _events.stream;
+  }
+
+  Future<void> close() async {
+    final socket = _socket;
+    _socket = null;
+    await _socketSubscription?.cancel();
+    _socketSubscription = null;
+    if (socket != null) await socket.close(WebSocketStatus.normalClosure);
+    _failPending(ApiException('Connection closed'));
   }
 
   Uri _uri(String path, [Map<String, String>? query]) {
@@ -210,12 +193,41 @@ class RemoteApi {
     String path, {
     Map<String, dynamic>? body,
     Map<String, String>? query,
-    bool auth = true,
+    String? binary,
+    String? contentType,
+  }) async {
+    await _ensureConnected();
+    final id = ++_nextRequestId;
+    final completer = Completer<dynamic>();
+    _pending[id] = completer;
+    final socket = _socket;
+    if (socket == null) {
+      _pending.remove(id);
+      throw ApiException('WebSocket is not connected');
+    }
+    socket.add(
+      jsonEncode({
+        'id': id,
+        'method': method,
+        'path': path,
+        if (query != null && query.isNotEmpty) 'query': query,
+        'body': ?body,
+        'binary': ?binary,
+        'contentType': ?contentType,
+      }),
+    );
+    return completer.future;
+  }
+
+  Future<dynamic> _httpRequest(
+    String method,
+    String path, {
+    Map<String, dynamic>? body,
+    Map<String, String>? query,
   }) async {
     final client = HttpClient();
     try {
       final request = await client.openUrl(method, _uri(path, query));
-      if (auth) _authorize(request);
       request.headers.contentType = ContentType.json;
       if (body != null) request.write(jsonEncode(body));
       final response = await request.close();
@@ -236,10 +248,86 @@ class RemoteApi {
     }
   }
 
-  void _authorize(HttpClientRequest request) {
-    final value = token;
-    if (value != null && value.isNotEmpty) {
-      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $value');
+  Future<void> _ensureConnected() {
+    final existing = _connecting;
+    if (existing != null) return existing;
+    final future = () async {
+      final headers = <String, String>{
+        if (token != null && token!.isNotEmpty)
+          HttpHeaders.authorizationHeader: 'Bearer $token',
+      };
+      final socket = await WebSocket.connect(
+        _webSocketUri.toString(),
+        headers: headers,
+      );
+      socket.pingInterval = const Duration(seconds: 20);
+      _socket = socket;
+      _socketSubscription = socket.listen(
+        (data) => _receive(socket, data),
+        onError: (Object error) => _failConnection(socket, error),
+        onDone: () => _failConnection(socket, ApiException('WebSocket closed')),
+        cancelOnError: false,
+      );
+    }();
+    _connecting = future;
+    return future.whenComplete(() {
+      if (identical(_connecting, future)) _connecting = null;
+    });
+  }
+
+  Uri get _webSocketUri => base.replace(
+    scheme: base.scheme == 'https' ? 'wss' : 'ws',
+    path: '/api/v1/ws',
+    query: '',
+    fragment: '',
+  );
+
+  void _receive(WebSocket socket, dynamic data) {
+    try {
+      final value = jsonDecode('$data');
+      if (value is! Map) return;
+      final id = value['id'];
+      if (id is int) {
+        final completer = _pending.remove(id);
+        if (completer == null) return;
+        final error = value['error'];
+        if (error is Map) {
+          completer.completeError(
+            ApiException(
+              '${error['message'] ?? 'Request failed'}',
+              statusCode: error['statusCode'] is int
+                  ? error['statusCode'] as int
+                  : null,
+            ),
+          );
+        } else {
+          completer.complete(value['result']);
+        }
+        return;
+      }
+      if (value['method'] is String && value['params'] is Map) {
+        _events.add(Map<String, dynamic>.from(value));
+      }
+    } catch (error) {
+      _failConnection(socket, error);
+    }
+  }
+
+  void _failConnection(WebSocket socket, Object error) {
+    if (!identical(_socket, socket)) return;
+    _socket = null;
+    final failure = error is ApiException
+        ? error
+        : ApiException(error.toString());
+    _failPending(failure);
+    _events.addError(failure);
+  }
+
+  void _failPending(ApiException error) {
+    final pending = List<Completer<dynamic>>.from(_pending.values);
+    _pending.clear();
+    for (final completer in pending) {
+      if (!completer.isCompleted) completer.completeError(error);
     }
   }
 }

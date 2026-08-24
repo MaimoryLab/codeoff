@@ -554,11 +554,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       final uploaded = <RemoteAttachment>[];
       for (final attachment in attachments) {
         uploaded.add(
-          await api!.upload(
-            attachment.name,
-            attachment.readAsByteStream(),
-            await attachment.length(),
-          ),
+          await api!.upload(attachment.name, attachment.readAsByteStream()),
         );
       }
       dynamic response;
