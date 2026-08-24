@@ -56,34 +56,11 @@ extension _ThreadView on _RemoteHomePageState {
 
   Widget _threadAppBarTitle(String id) {
     final cwd = _threadCwd(id);
-    final active = threads.any(
-      (thread) => _threadId(thread) == id && remoteThreadIsActive(thread),
-    );
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Flexible(
-              child: Text(
-                _threadTitle(id),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (active) ...[
-              const SizedBox(width: 8),
-              const SizedBox(
-                width: 12,
-                height: 12,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const SizedBox(width: 5),
-              const Text('Working', style: TextStyle(fontSize: 12)),
-            ],
-          ],
-        ),
+        Text(_threadTitle(id), maxLines: 1, overflow: TextOverflow.ellipsis),
         if (cwd.isNotEmpty)
           Text(
             cwd,
@@ -123,9 +100,9 @@ extension _ThreadView on _RemoteHomePageState {
   Widget _threadView() => Column(
     children: [
       Expanded(
-        child: loadingHistory && history.isEmpty
+        child: loadingHistory && history.isEmpty && processingSummary.isEmpty
             ? const Center(child: CircularProgressIndicator())
-            : history.isEmpty
+            : history.isEmpty && processingSummary.isEmpty
             ? _emptyState(
                 'No messages in this thread',
                 Icons.chat_bubble_outline,
@@ -133,9 +110,17 @@ extension _ThreadView on _RemoteHomePageState {
             : ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
                 reverse: true,
-                itemCount: history.length,
-                itemBuilder: (context, index) =>
-                    _messageBubble(history[history.length - 1 - index]),
+                itemCount:
+                    history.length + (processingSummary.isNotEmpty ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (processingSummary.isNotEmpty && index == 0) {
+                    return _processingSummary();
+                  }
+                  final offset = processingSummary.isNotEmpty ? 1 : 0;
+                  return _messageBubble(
+                    history[history.length - 1 - index + offset],
+                  );
+                },
               ),
       ),
       SafeArea(
@@ -206,4 +191,25 @@ extension _ThreadView on _RemoteHomePageState {
       ),
     );
   }
+
+  Widget _processingSummary() => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            processingSummary,
+            style: const TextStyle(color: Colors.white60, fontSize: 13),
+          ),
+        ),
+      ],
+    ),
+  );
 }

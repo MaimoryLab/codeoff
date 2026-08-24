@@ -64,6 +64,34 @@ String activeTurnIdFrom(dynamic value) {
   return activeTurnIdFrom(value['thread'] ?? value['turn']);
 }
 
+String processingSummaryFromItem(dynamic value) {
+  if (value is! Map) return '';
+  final type = '${value['type'] ?? ''}';
+  switch (type) {
+    case 'commandExecution':
+      final command = '${value['command'] ?? ''}'.trim();
+      return command.isEmpty ? 'Running a command' : 'Running: $command';
+    case 'mcpToolCall':
+      final server = '${value['server'] ?? ''}'.trim();
+      final tool = '${value['tool'] ?? ''}'.trim();
+      final name = [server, tool].where((part) => part.isNotEmpty).join('/');
+      return name.isEmpty ? 'Calling a tool' : 'Calling: $name';
+    case 'dynamicToolCall':
+      final namespace = '${value['namespace'] ?? ''}'.trim();
+      final tool = '${value['tool'] ?? ''}'.trim();
+      final name = [namespace, tool].where((part) => part.isNotEmpty).join('/');
+      return name.isEmpty ? 'Calling a tool' : 'Calling: $name';
+    case 'webSearch':
+      return 'Searching the web';
+    case 'fileChange':
+      return 'Applying file changes';
+    case 'collabAgentToolCall':
+      return 'Running an agent task';
+    default:
+      return '';
+  }
+}
+
 extension _ThreadData on _RemoteHomePageState {
   List<Map<String, dynamic>> _visibleThreads() {
     final query = search.text.trim().toLowerCase();

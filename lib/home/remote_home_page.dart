@@ -40,6 +40,8 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   String? selectedThread;
   String? selectedProject;
   String activeTurnId = '';
+  String processingSummary = '';
+  String processingItemId = '';
   bool projectsView = false;
   String message = 'Enter the desktop endpoint to begin.';
   bool busy = false;
@@ -128,10 +130,48 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           _appendAssistantDelta(params);
         }
         if (method == 'turn/started' && threadId == selectedThread) {
-          setState(() => activeTurnId = activeTurnIdFrom(params));
+          setState(() {
+            activeTurnId = activeTurnIdFrom(params);
+            processingSummary = 'Working...';
+            processingItemId = '';
+          });
+        }
+        if (method == 'item/started' && threadId == selectedThread) {
+          final item = params['item'];
+          final summary = processingSummaryFromItem(item);
+          if (summary.isNotEmpty) {
+            setState(() {
+              processingSummary = summary;
+              processingItemId = '${item is Map ? item['id'] ?? '' : ''}';
+            });
+          }
+        }
+        if (method == 'item/reasoning/summaryTextDelta' &&
+            threadId == selectedThread) {
+          final delta = '${params['delta'] ?? ''}';
+          if (delta.isNotEmpty) {
+            final itemId = '${params['itemId'] ?? ''}';
+            setState(() {
+              processingSummary = processingItemId == itemId
+                  ? '$processingSummary$delta'
+                  : 'Thinking: $delta';
+              processingItemId = itemId;
+            });
+          }
+        }
+        if (method == 'item/completed' && threadId == selectedThread) {
+          final itemId =
+              '${params['item'] is Map ? params['item']['id'] ?? '' : ''}';
+          if (itemId == processingItemId) {
+            setState(() => processingSummary = 'Working...');
+          }
         }
         if (method == 'turn/completed' && threadId == selectedThread) {
-          setState(() => activeTurnId = '');
+          setState(() {
+            activeTurnId = '';
+            processingSummary = '';
+            processingItemId = '';
+          });
           _loadHistory(selectedThread, force: true);
         }
       },
@@ -300,6 +340,12 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       setState(() {
         history = _historyItems(value);
         activeTurnId = activeTurnIdFrom(value);
+        if (activeTurnId.isEmpty) {
+          processingSummary = '';
+          processingItemId = '';
+        } else if (processingSummary.isEmpty) {
+          processingSummary = 'Working...';
+        }
         loadedHistoryFor = id;
       });
     } catch (error) {
@@ -317,6 +363,8 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       settingsOpen = false;
       loadedHistoryFor = null;
       activeTurnId = '';
+      processingSummary = '';
+      processingItemId = '';
       history = [];
     });
     _loadHistory(id);

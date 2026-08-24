@@ -78,6 +78,28 @@ void main() {
     expect(externalHttpUri('/relative'), isNull);
   });
 
+  test('summarizes reasoning and tool items', () {
+    expect(
+      processingSummaryFromItem({
+        'type': 'commandExecution',
+        'command': 'flutter test',
+      }),
+      'Running: flutter test',
+    );
+    expect(
+      processingSummaryFromItem({
+        'type': 'mcpToolCall',
+        'server': 'docs',
+        'tool': 'search',
+      }),
+      'Calling: docs/search',
+    );
+    expect(
+      processingSummaryFromItem({'type': 'webSearch'}),
+      'Searching the web',
+    );
+  });
+
   testWidgets('renders remote control sections', (WidgetTester tester) async {
     await tester.pumpWidget(const CodexRemoteApp());
     expect(find.text('Codex Remote'), findsOneWidget);
