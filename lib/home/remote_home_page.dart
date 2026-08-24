@@ -56,8 +56,6 @@ class RemoteHomePage extends StatefulWidget {
 }
 
 class _RemoteHomePageState extends State<RemoteHomePage> {
-  static const endpointKey = 'desktop_endpoint';
-  static const tokenKey = 'device_token';
   static const connectionsKey = 'connections';
   static const permissionModeKey = 'permission_mode';
   static const secureStorage = FlutterSecureStorage();
@@ -878,6 +876,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     eventSubscription = null;
     threadRefreshTimer?.cancel();
     threadRefreshTimer = null;
+    await api?.close();
     api = null;
     connected = false;
     activeConnectionId = null;
@@ -928,6 +927,10 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     if (record['serverId'] == activeConnectionId) await _disconnect();
     if (!mounted) return;
     setState(() => connections = [...connections]..remove(record));
+    if (connections.isEmpty) {
+      endpoint.clear();
+      accessToken.clear();
+    }
     await _saveConnection();
     _toast('Connection removed');
   }
@@ -996,8 +999,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   Future<void> _restoreConnection() async {
     try {
       final savedConnections = await secureStorage.read(key: connectionsKey);
-      final savedEndpoint = await secureStorage.read(key: endpointKey);
-      final savedToken = await secureStorage.read(key: tokenKey);
       final savedPermission = await secureStorage.read(key: permissionModeKey);
       if (!mounted) return;
       if (savedConnections != null && savedConnections.isNotEmpty) {
@@ -1015,24 +1016,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
               )
               .toList();
         }
-      }
-      if (endpoint.text.isEmpty && savedEndpoint != null) {
-        endpoint.text = savedEndpoint;
-      }
-      if (accessToken.text.isEmpty && savedToken != null) {
-        accessToken.text = savedToken;
-      }
-      if (connections.isEmpty &&
-          endpoint.text.trim().isNotEmpty &&
-          accessToken.text.trim().isNotEmpty) {
-        connections = [
-          {
-            'serverId': endpoint.text.trim(),
-            'name': endpoint.text.trim(),
-            'endpoint': endpoint.text.trim(),
-            'token': accessToken.text.trim(),
-          },
-        ];
       }
       setState(() {
         permissionMode = RemotePermissionMode.values.firstWhere(
@@ -1060,18 +1043,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         key: connectionsKey,
         value: jsonEncode(connections),
       );
-      final endpointValue = endpoint.text.trim();
-      if (endpointValue.isEmpty) {
-        await secureStorage.delete(key: endpointKey);
-      } else {
-        await secureStorage.write(key: endpointKey, value: endpointValue);
-      }
-      final tokenValue = accessToken.text.trim();
-      if (tokenValue.isEmpty) {
-        await secureStorage.delete(key: tokenKey);
-      } else {
-        await secureStorage.write(key: tokenKey, value: tokenValue);
-      }
     } catch (_) {
       // A storage failure must not prevent an otherwise valid connection.
     }
