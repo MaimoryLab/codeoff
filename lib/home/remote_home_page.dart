@@ -76,8 +76,8 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     super.dispose();
   }
 
-  Future<void> pickAttachments() async {
-    final picked = await FilePicker.pickFiles();
+  Future<void> pickAttachments(FileType type) async {
+    final picked = await FilePicker.pickFiles(type: type);
     if (!mounted || picked.isEmpty) return;
     setState(() => attachments = [...attachments, ...picked]);
   }

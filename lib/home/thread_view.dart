@@ -246,10 +246,29 @@ extension _ThreadView on _RemoteHomePageState {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  IconButton(
-                    onPressed: busy ? null : pickAttachments,
+                  PopupMenuButton<FileType>(
+                    enabled: !busy,
                     tooltip: 'Attach file or image',
-                    icon: const Icon(Icons.attach_file),
+                    onSelected: pickAttachments,
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: FileType.image,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.image_outlined),
+                          title: Text('Choose images'),
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: FileType.any,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.insert_drive_file_outlined),
+                          title: Text('Choose files'),
+                        ),
+                      ),
+                    ],
+                    child: const Icon(Icons.attach_file),
                   ),
                   Expanded(
                     child: TextField(
