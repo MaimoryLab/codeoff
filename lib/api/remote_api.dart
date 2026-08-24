@@ -205,17 +205,23 @@ class RemoteApi {
       _pending.remove(id);
       throw ApiException('WebSocket is not connected');
     }
-    socket.add(
-      jsonEncode({
-        'id': id,
-        'method': method,
-        'path': path,
-        if (query != null && query.isNotEmpty) 'query': query,
-        'body': ?body,
-        'binary': ?binary,
-        'contentType': ?contentType,
-      }),
-    );
+    try {
+      socket.add(
+        jsonEncode({
+          'id': id,
+          'method': method,
+          'path': path,
+          if (query != null && query.isNotEmpty) 'query': query,
+          'body': ?body,
+          'binary': ?binary,
+          'contentType': ?contentType,
+        }),
+      );
+    } catch (error) {
+      _pending.remove(id);
+      _failConnection(socket, error);
+      throw ApiException(error.toString());
+    }
     return completer.future;
   }
 
@@ -252,22 +258,29 @@ class RemoteApi {
     final existing = _connecting;
     if (existing != null) return existing;
     final future = () async {
-      final headers = <String, String>{
-        if (token != null && token!.isNotEmpty)
-          HttpHeaders.authorizationHeader: 'Bearer $token',
-      };
-      final socket = await WebSocket.connect(
-        _webSocketUri.toString(),
-        headers: headers,
-      );
-      socket.pingInterval = const Duration(seconds: 20);
-      _socket = socket;
-      _socketSubscription = socket.listen(
-        (data) => _receive(socket, data),
-        onError: (Object error) => _failConnection(socket, error),
-        onDone: () => _failConnection(socket, ApiException('WebSocket closed')),
-        cancelOnError: false,
-      );
+      try {
+        final headers = <String, String>{
+          if (token != null && token!.isNotEmpty)
+            HttpHeaders.authorizationHeader: 'Bearer $token',
+        };
+        final socket = await WebSocket.connect(
+          _webSocketUri.toString(),
+          headers: headers,
+        );
+        socket.pingInterval = const Duration(seconds: 20);
+        _socket = socket;
+        _socketSubscription = socket.listen(
+          (data) => _receive(socket, data),
+          onError: (Object error) => _failConnection(socket, error),
+          onDone: () =>
+              _failConnection(socket, ApiException('WebSocket closed')),
+          cancelOnError: false,
+        );
+      } on ApiException {
+        rethrow;
+      } catch (error) {
+        throw ApiException(error.toString());
+      }
     }();
     _connecting = future;
     return future.whenComplete(() {
