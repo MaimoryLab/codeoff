@@ -114,7 +114,7 @@ extension _ThreadView on _RemoteHomePageState {
   Widget _threadView() => Column(
     children: [
       Expanded(
-        child: loadingHistory
+        child: loadingHistory && history.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : history.isEmpty
             ? _emptyState(

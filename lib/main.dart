@@ -4,6 +4,6 @@ import 'app.dart';
 
 export 'app.dart';
 export 'home/remote_home_page.dart'
-    show compareRemoteThreads, parseRemoteTimestamp;
+    show compareRemoteThreads, parseRemoteTimestamp, shouldRefreshRemoteHistory;
 
 void main() => runApp(const CodexRemoteApp());

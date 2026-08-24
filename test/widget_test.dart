@@ -31,6 +31,24 @@ void main() {
     expect(threads.map((thread) => thread['id']), ['old-active', 'new-idle']);
   });
 
+  test('refreshes history after an active thread becomes idle', () {
+    final active = <Map<String, dynamic>>[
+      {
+        'id': 'selected',
+        'status': {'type': 'active'},
+      },
+    ];
+    final idle = <Map<String, dynamic>>[
+      {
+        'id': 'selected',
+        'status': {'type': 'idle'},
+      },
+    ];
+
+    expect(shouldRefreshRemoteHistory('selected', active, idle), isTrue);
+    expect(shouldRefreshRemoteHistory('selected', idle, idle), isFalse);
+  });
+
   testWidgets('renders remote control sections', (WidgetTester tester) async {
     await tester.pumpWidget(const CodexRemoteApp());
     expect(find.text('Codex Remote'), findsOneWidget);
