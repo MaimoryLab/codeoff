@@ -64,11 +64,6 @@ extension _SettingsView on _RemoteHomePageState {
           ),
         ),
       ]),
-      if (approvals.isNotEmpty)
-        _settingsSection(
-          'Approvals',
-          approvals.map((event) => _approvalCard(event)).toList(),
-        ),
       Text(message, style: Theme.of(context).textTheme.bodySmall),
     ],
   );
@@ -90,40 +85,4 @@ extension _SettingsView on _RemoteHomePageState {
       ],
     ),
   );
-
-  Widget _approvalCard(Map<String, dynamic> event) {
-    final params = event['params'] is Map
-        ? Map<String, dynamic>.from(event['params'] as Map)
-        : <String, dynamic>{};
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${event['method']} #${event['id']}'),
-            Text(
-              params['command']?.toString() ??
-                  params['reason']?.toString() ??
-                  'Codex requests approval',
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            Row(
-              children: [
-                TextButton(
-                  onPressed: busy ? null : () => answer(event, 'decline'),
-                  child: const Text('Decline'),
-                ),
-                TextButton(
-                  onPressed: busy ? null : () => answer(event, 'accept'),
-                  child: const Text('Accept'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

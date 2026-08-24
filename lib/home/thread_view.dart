@@ -183,30 +183,7 @@ extension _ThreadView on _RemoteHomePageState {
 
   Widget _threadView() => Column(
     children: [
-      Expanded(
-        child: loadingHistory && history.isEmpty && processingSummary.isEmpty
-            ? const Center(child: CircularProgressIndicator())
-            : history.isEmpty && processingSummary.isEmpty
-            ? _emptyState(
-                'No messages in this thread',
-                Icons.chat_bubble_outline,
-              )
-            : ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-                reverse: true,
-                itemCount:
-                    history.length + (processingSummary.isNotEmpty ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (processingSummary.isNotEmpty && index == 0) {
-                    return _processingSummary();
-                  }
-                  final offset = processingSummary.isNotEmpty ? 1 : 0;
-                  return _messageBubble(
-                    history[history.length - 1 - index + offset],
-                  );
-                },
-              ),
-      ),
+      Expanded(child: _threadMessages()),
       SafeArea(
         top: false,
         child: Padding(
@@ -340,6 +317,47 @@ extension _ThreadView on _RemoteHomePageState {
     ],
   );
 
+  Widget _threadMessages() {
+    final pendingApprovals = approvals.where((event) {
+      final threadId = approvalThreadIdFrom(event);
+      return threadId.isEmpty || threadId == selectedThread;
+    }).toList();
+    final processingCount = processingSummary.isEmpty ? 0 : 1;
+    if (loadingHistory &&
+        history.isEmpty &&
+        processingSummary.isEmpty &&
+        pendingApprovals.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (history.isEmpty &&
+        processingSummary.isEmpty &&
+        pendingApprovals.isEmpty) {
+      return _emptyState(
+        'No messages in this thread',
+        Icons.chat_bubble_outline,
+      );
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+      reverse: true,
+      itemCount: history.length + pendingApprovals.length + processingCount,
+      itemBuilder: (context, index) {
+        if (index < pendingApprovals.length) {
+          return _approvalMessage(
+            pendingApprovals[pendingApprovals.length - 1 - index],
+          );
+        }
+        final activityIndex = index - pendingApprovals.length;
+        if (processingCount == 1 && activityIndex == 0) {
+          return _processingSummary();
+        }
+        return _messageBubble(
+          history[history.length - 1 - activityIndex + processingCount],
+        );
+      },
+    );
+  }
+
   IconData _permissionIcon(RemotePermissionMode mode) => switch (mode) {
     RemotePermissionMode.requestApproval => Icons.shield_outlined,
     RemotePermissionMode.autoApprove => Icons.verified_user_outlined,
@@ -376,6 +394,64 @@ extension _ThreadView on _RemoteHomePageState {
               }
             }
           },
+        ),
+      ),
+    );
+  }
+
+  Widget _approvalMessage(Map<String, dynamic> event) {
+    final details = approvalDetailsFrom(event);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xff302a27),
+          border: Border.all(color: const Color(0xff9f6148)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.shield_outlined, size: 19),
+                const SizedBox(width: 8),
+                Text(
+                  '${details.kind} approval',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text('Reason', style: TextStyle(color: Colors.white60)),
+            SelectableText(details.reason),
+            const SizedBox(height: 10),
+            Text(details.kind, style: const TextStyle(color: Colors.white60)),
+            SelectableText(
+              details.target,
+              style: const TextStyle(fontFamily: 'monospace'),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: busy ? null : () => answer(event, 'decline'),
+                  icon: const Icon(Icons.close),
+                  label: const Text('Deny'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  onPressed: busy ? null : () => answer(event, 'accept'),
+                  icon: const Icon(Icons.check),
+                  label: const Text('Allow'),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

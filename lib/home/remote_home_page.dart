@@ -524,7 +524,9 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     if (id is! int) return;
     await _run('Sending decision...', () async {
       await api!.approve(id, decision);
-      setState(() => approvals.removeWhere((item) => item['id'] == id));
+      if (mounted) {
+        setState(() => approvals.removeWhere((item) => item['id'] == id));
+      }
     });
   }
 
