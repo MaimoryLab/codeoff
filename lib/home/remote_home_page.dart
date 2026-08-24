@@ -197,7 +197,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   Future<Map<String, dynamic>?> _pairDialog() {
     final token = TextEditingController();
     final name = TextEditingController(text: _defaultDeviceName);
-    return showDialog<Map<String, dynamic>>(
+    final dialog = showDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Pair this device'),
@@ -233,10 +233,14 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           ),
         ],
       ),
-    ).whenComplete(() {
-      token.dispose();
-      name.dispose();
+    );
+    dialog.whenComplete(() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        token.dispose();
+        name.dispose();
+      });
     });
+    return dialog;
   }
 
   String get _defaultDeviceName => Platform.localHostname.trim().isEmpty
@@ -908,7 +912,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         ],
       ),
     );
-    name.dispose();
+    WidgetsBinding.instance.addPostFrameCallback((_) => name.dispose());
     if (!mounted || changed == null || changed.isEmpty) return;
     final index = connections.indexOf(record);
     if (index == -1) return;
