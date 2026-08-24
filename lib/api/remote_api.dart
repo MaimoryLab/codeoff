@@ -3,8 +3,14 @@ import 'dart:convert';
 import 'dart:io';
 
 class ApiException implements Exception {
-  ApiException(this.message);
+  ApiException(this.message, {this.statusCode});
   final String message;
+  final int? statusCode;
+
+  bool get isConnectionFailure =>
+      statusCode == null ||
+      statusCode == HttpStatus.unauthorized ||
+      statusCode! >= HttpStatus.internalServerError;
 
   @override
   String toString() => message;
@@ -49,6 +55,14 @@ class RemoteApi {
     '/api/v1/threads/$threadId/turns',
     body: {'input': input},
   );
+
+  Future<dynamic> steerTurn(String threadId, String turnId, String input) =>
+      _request(
+        'POST',
+        '/api/v1/turns/$turnId/steer',
+        query: {'threadId': threadId},
+        body: {'input': input},
+      );
 
   Future<void> approve(int requestId, String decision) async {
     await _request(
@@ -106,6 +120,7 @@ class RemoteApi {
           text.isEmpty
               ? 'Request failed (${response.statusCode})'
               : text.trim(),
+          statusCode: response.statusCode,
         );
       }
       return text.isEmpty ? null : jsonDecode(text);

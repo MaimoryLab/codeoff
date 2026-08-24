@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:codex_remote/api.dart';
 import 'package:codex_remote/main.dart';
 
 void main() {
@@ -47,6 +48,27 @@ void main() {
 
     expect(shouldRefreshRemoteHistory('selected', active, idle), isTrue);
     expect(shouldRefreshRemoteHistory('selected', idle, idle), isFalse);
+  });
+
+  test('finds the in-progress turn in a thread response', () {
+    final response = {
+      'thread': {
+        'turns': [
+          {'id': 'done', 'status': 'completed'},
+          {'id': 'active', 'status': 'inProgress'},
+        ],
+      },
+    };
+
+    expect(activeTurnIdFrom(response), 'active');
+  });
+
+  test('does not treat a business error as a disconnect', () {
+    expect(
+      ApiException('conflict', statusCode: 409).isConnectionFailure,
+      false,
+    );
+    expect(ApiException('offline').isConnectionFailure, true);
   });
 
   testWidgets('renders remote control sections', (WidgetTester tester) async {

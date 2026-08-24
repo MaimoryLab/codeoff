@@ -38,6 +38,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   List<Map<String, dynamic>> history = [];
   String? selectedThread;
   String? selectedProject;
+  String activeTurnId = '';
   bool projectsView = false;
   String message = 'Enter the desktop endpoint to begin.';
   bool busy = false;
@@ -125,7 +126,11 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         if (method == 'item/agentMessage/delta' && threadId == selectedThread) {
           _appendAssistantDelta(params);
         }
+        if (method == 'turn/started' && threadId == selectedThread) {
+          setState(() => activeTurnId = activeTurnIdFrom(params));
+        }
         if (method == 'turn/completed' && threadId == selectedThread) {
+          setState(() => activeTurnId = '');
           _loadHistory(selectedThread, force: true);
         }
       },
@@ -220,20 +225,37 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     if (id == null || text.isEmpty) return;
     await _run('Sending...', () async {
       if (!mounted || selectedThread != id) return;
-      setState(() {
-        input.clear();
-        history = [
-          ...history,
-          {'role': 'user', 'content': text},
-        ];
-        message = 'Turn started';
-      });
       final thread = threads.firstWhere(
         (item) => _threadId(item) == id,
         orElse: () => <String, dynamic>{},
       );
       if (_threadNeedsResume(thread)) await api!.resumeThread(id);
-      await api!.startTurn(id, text);
+      final active = remoteThreadIsActive(thread);
+      dynamic response;
+      if (active) {
+        var turnId = activeTurnId;
+        if (turnId.isEmpty) turnId = activeTurnIdFrom(await api!.thread(id));
+        if (turnId.isEmpty) {
+          throw ApiException(
+            'Unable to find the active turn. Refresh and try again.',
+            statusCode: 409,
+          );
+        }
+        response = await api!.steerTurn(id, turnId, text);
+      } else {
+        response = await api!.startTurn(id, text);
+      }
+      if (!mounted || selectedThread != id) return;
+      final responseTurnId = activeTurnIdFrom(response);
+      setState(() {
+        if (input.text.trim() == text) input.clear();
+        history = [
+          ...history,
+          {'role': 'user', 'content': text},
+        ];
+        if (responseTurnId.isNotEmpty) activeTurnId = responseTurnId;
+        message = active ? 'Message sent' : 'Turn started';
+      });
     });
   }
 
@@ -276,6 +298,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       if (!mounted || selectedThread != id) return;
       setState(() {
         history = _historyItems(value);
+        activeTurnId = activeTurnIdFrom(value);
         loadedHistoryFor = id;
       });
     } catch (error) {
@@ -292,6 +315,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       projectsView = false;
       settingsOpen = false;
       loadedHistoryFor = null;
+      activeTurnId = '';
       history = [];
     });
     _loadHistory(id);
@@ -357,11 +381,14 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       await operation();
     } catch (error) {
       if (mounted) {
+        final disconnected = error is ApiException && error.isConnectionFailure;
         setState(() {
           message = error.toString();
-          connected = false;
+          if (disconnected) connected = false;
         });
-        threadRefreshTimer?.cancel();
+        if (disconnected) threadRefreshTimer?.cancel();
+        ScaffoldMessenger.maybeOf(context)
+            ?.showSnackBar(SnackBar(content: Text(error.toString())));
       }
     } finally {
       if (mounted) setState(() => busy = false);

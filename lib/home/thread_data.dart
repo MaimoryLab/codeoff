@@ -51,6 +51,19 @@ bool shouldRefreshRemoteHistory(
               remoteThreadIsActive(thread),
         );
 
+String activeTurnIdFrom(dynamic value) {
+  if (value is! Map) return '';
+  if (value['status'] == 'inProgress') return '${value['id'] ?? ''}';
+  final turns = value['turns'];
+  if (turns is List) {
+    for (final turn in turns.reversed) {
+      final id = activeTurnIdFrom(turn);
+      if (id.isNotEmpty) return id;
+    }
+  }
+  return activeTurnIdFrom(value['thread'] ?? value['turn']);
+}
+
 extension _ThreadData on _RemoteHomePageState {
   List<Map<String, dynamic>> _visibleThreads() {
     final query = search.text.trim().toLowerCase();
