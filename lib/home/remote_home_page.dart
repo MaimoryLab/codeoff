@@ -58,6 +58,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   @override
   void dispose() {
+    _unsubscribeSelectedThread();
     eventSubscription?.cancel();
     threadRefreshTimer?.cancel();
     for (final controller in [
@@ -356,6 +357,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   }
 
   void _openThread(String id) {
+    _unsubscribeSelectedThread(id);
     setState(() {
       selectedThread = id;
       selectedProject = null;
@@ -372,6 +374,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   void _openSettings() {
     Navigator.of(context).maybePop();
+    _unsubscribeSelectedThread();
     setState(() {
       settingsOpen = true;
       selectedThread = null;
@@ -382,6 +385,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   void _showThreads() {
     Navigator.of(context).maybePop();
+    _unsubscribeSelectedThread();
     setState(() {
       settingsOpen = false;
       selectedThread = null;
@@ -392,6 +396,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   void _showRecent() {
     Navigator.of(context).maybePop();
+    _unsubscribeSelectedThread();
     setState(() {
       settingsOpen = false;
       selectedThread = null;
@@ -402,6 +407,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   void _showProjects() {
     Navigator.of(context).maybePop();
+    _unsubscribeSelectedThread();
     setState(() {
       settingsOpen = false;
       selectedThread = null;
@@ -412,12 +418,26 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   void _selectProject(String project) {
     Navigator.of(context).maybePop();
+    _unsubscribeSelectedThread();
     setState(() {
       settingsOpen = false;
       selectedThread = null;
       selectedProject = project;
       projectsView = false;
     });
+  }
+
+  void _unsubscribeSelectedThread([String? nextThread]) {
+    final id = selectedThread;
+    if (id != null && id != nextThread) unawaited(_unsubscribeThread(id));
+  }
+
+  Future<void> _unsubscribeThread(String id) async {
+    try {
+      await api?.unsubscribeThread(id);
+    } catch (error) {
+      if (mounted) setState(() => message = error.toString());
+    }
   }
 
   Future<void> _run(String pending, Future<void> Function() operation) async {
