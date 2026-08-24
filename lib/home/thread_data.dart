@@ -37,20 +37,6 @@ int compareRemoteThreads(Map<String, dynamic> a, Map<String, dynamic> b) {
   return remoteThreadDate(b).compareTo(remoteThreadDate(a));
 }
 
-bool shouldRefreshRemoteHistory(
-  String? selectedThread,
-  Iterable<Map<String, dynamic>> before,
-  Iterable<Map<String, dynamic>> after,
-) =>
-    selectedThread != null &&
-    before
-        .followedBy(after)
-        .any(
-          (thread) =>
-              '${thread['id'] ?? thread['threadId'] ?? ''}' == selectedThread &&
-              remoteThreadIsActive(thread),
-        );
-
 String activeTurnIdFrom(dynamic value) {
   if (value is! Map) return '';
   if (value['status'] == 'inProgress') return '${value['id'] ?? ''}';

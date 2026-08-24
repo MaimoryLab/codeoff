@@ -230,16 +230,11 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       next.sort(compareRemoteThreads);
       if (!mounted) return;
       final historyThread = selectedThread;
-      final refreshHistory = shouldRefreshRemoteHistory(
-        historyThread,
-        threads,
-        next,
-      );
       setState(() {
         threads = next;
         // A newly-created thread can be absent from list results briefly.
       });
-      if (refreshHistory) await _loadHistory(historyThread, force: true);
+      if (historyThread != null) await _loadHistory(historyThread, force: true);
     } catch (error) {
       if (mounted) setState(() => message = error.toString());
     }

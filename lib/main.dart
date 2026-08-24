@@ -9,7 +9,6 @@ export 'home/remote_home_page.dart'
         compareRemoteThreads,
         externalHttpUri,
         parseRemoteTimestamp,
-        processingSummaryFromItem,
-        shouldRefreshRemoteHistory;
+        processingSummaryFromItem;
 
 void main() => runApp(const CodexRemoteApp());
