@@ -97,6 +97,33 @@ void main() {
     expect(RemotePermissionMode.fullAccess.sandboxPolicy, 'dangerFullAccess');
   });
 
+  test('extracts approval reason and command or tool target', () {
+    final command = approvalDetailsFrom({
+      'method': 'item/commandExecution/requestApproval',
+      'params': {
+        'threadId': 'thread-42',
+        'reason': 'Needs network access',
+        'command': 'curl https://example.com',
+      },
+    });
+    expect(
+      approvalThreadIdFrom({
+        'params': {'threadId': 'thread-42'},
+      }),
+      'thread-42',
+    );
+    expect(command.kind, 'Command');
+    expect(command.reason, 'Needs network access');
+    expect(command.target, 'curl https://example.com');
+
+    final tool = approvalDetailsFrom({
+      'method': 'item/tool/requestApproval',
+      'params': {'server': 'github', 'tool': 'merge_pull_request'},
+    });
+    expect(tool.kind, 'Tool');
+    expect(tool.target, 'github/merge_pull_request');
+  });
+
   test('accepts only external HTTP links', () {
     expect(externalHttpUri('https://example.com/docs')?.host, 'example.com');
     expect(externalHttpUri('http://example.com'), isNotNull);

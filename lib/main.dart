@@ -6,6 +6,8 @@ export 'app.dart';
 export 'home/remote_home_page.dart'
     show
         activeTurnIdFrom,
+        approvalDetailsFrom,
+        approvalThreadIdFrom,
         compareRemoteThreads,
         externalHttpUri,
         parseRemoteTimestamp,

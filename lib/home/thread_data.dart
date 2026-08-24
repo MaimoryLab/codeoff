@@ -120,6 +120,58 @@ String processingSummaryFromItem(dynamic value) {
   }
 }
 
+String approvalThreadIdFrom(Map<String, dynamic> event) {
+  final params = event['params'];
+  if (params is! Map) return '';
+  return '${params['threadId'] ?? params['conversationId'] ?? ''}';
+}
+
+({String kind, String reason, String target}) approvalDetailsFrom(
+  Map<String, dynamic> event,
+) {
+  final method = '${event['method'] ?? ''}';
+  final lowerMethod = method.toLowerCase();
+  final params = event['params'] is Map
+      ? Map<String, dynamic>.from(event['params'] as Map)
+      : <String, dynamic>{};
+  final kind = lowerMethod.contains('command')
+      ? 'Command'
+      : lowerMethod.contains('file') || lowerMethod.contains('patch')
+      ? 'File changes'
+      : lowerMethod.contains('permission')
+      ? 'Permissions'
+      : lowerMethod.contains('tool')
+      ? 'Tool'
+      : 'Approval';
+  final tool = [
+    params['server'] ?? params['namespace'],
+    params['tool'] ?? params['name'],
+  ].map(_approvalValue).where((part) => part.isNotEmpty).join('/');
+  final target = [
+    _approvalValue(params['command']),
+    tool,
+    _approvalValue(params['grantRoot']),
+    _approvalValue(params['permissions']),
+  ].firstWhere((value) => value.isNotEmpty, orElse: () => kind);
+  final reason = _approvalValue(params['reason']);
+  return (
+    kind: kind,
+    reason: reason.isEmpty ? 'Codex needs your approval to continue.' : reason,
+    target: target,
+  );
+}
+
+String _approvalValue(dynamic value) {
+  if (value == null) return '';
+  if (value is List) return value.map(_approvalValue).join(' ').trim();
+  if (value is Map) {
+    return value.entries
+        .map((entry) => '${entry.key}: ${_approvalValue(entry.value)}')
+        .join(', ');
+  }
+  return '$value'.trim();
+}
+
 extension _ThreadData on _RemoteHomePageState {
   List<Map<String, dynamic>> _visibleThreads() {
     final query = search.text.trim().toLowerCase();
