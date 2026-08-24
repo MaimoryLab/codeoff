@@ -51,8 +51,89 @@ extension _ThreadView on _RemoteHomePageState {
       style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
     ),
     subtitle: _threadMeta(thread),
+    trailing: _threadMenu(thread),
     onTap: () => _openThread(_threadId(thread)),
   );
+
+  Widget _threadMenu(Map<String, dynamic> thread) => PopupMenuButton<String>(
+    tooltip: 'Thread actions',
+    onSelected: (action) => _threadAction(thread, action),
+    itemBuilder: (context) => const [
+      PopupMenuItem(value: 'rename', child: Text('Rename')),
+      PopupMenuItem(value: 'archive', child: Text('Archive')),
+    ],
+  );
+
+  Future<void> _threadAction(Map<String, dynamic> thread, String action) {
+    switch (action) {
+      case 'rename':
+        return _renameThread(thread);
+      case 'archive':
+        return _archiveThread(thread);
+      default:
+        return Future.value();
+    }
+  }
+
+  Future<void> _renameThread(Map<String, dynamic> thread) async {
+    final controller = TextEditingController(text: _threadTitle(thread));
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename thread'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (value) => Navigator.pop(context, value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (!mounted || name == null || name.isEmpty) return;
+    final id = _threadId(thread);
+    await _run('Renaming...', () async {
+      await api!.renameThread(id, name);
+      _setThreadName(thread, name);
+    });
+  }
+
+  Future<void> _archiveThread(Map<String, dynamic> thread) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Archive thread?'),
+        content: Text('"${_threadTitle(thread)}" will be removed from Recent.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Archive'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+    final id = _threadId(thread);
+    await _run('Archiving...', () async {
+      await api!.archiveThread(id);
+      if (selectedThread == id) _showThreads();
+      await _reloadThreads();
+    });
+  }
 
   Widget _threadAppBarTitle(String id) {
     final cwd = _threadCwd(id);

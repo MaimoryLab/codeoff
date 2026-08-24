@@ -127,6 +127,22 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             threads.sort(compareRemoteThreads);
           });
         }
+        if (method == 'thread/name/updated') {
+          final name = '${params['threadName'] ?? params['name'] ?? ''}'.trim();
+          if (name.isNotEmpty) {
+            setState(() {
+              for (final thread in threads) {
+                if (_threadId(thread) == threadId) thread['name'] = name;
+              }
+            });
+          }
+        }
+        if (method == 'thread/archived') {
+          setState(() {
+            threads.removeWhere((thread) => _threadId(thread) == threadId);
+          });
+          if (selectedThread == threadId) _showThreads();
+        }
         if (method == 'item/agentMessage/delta' && threadId == selectedThread) {
           _appendAssistantDelta(params);
         }
@@ -254,6 +270,11 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       await _reloadThreads();
       if (id.isNotEmpty) _openThread(id);
     });
+  }
+
+  void _setThreadName(Map<String, dynamic> thread, String name) {
+    if (!mounted) return;
+    setState(() => thread['name'] = name);
   }
 
   Future<void> sendTurn() async {

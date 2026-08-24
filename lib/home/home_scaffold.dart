@@ -152,6 +152,7 @@ extension _HomeScaffold on _RemoteHomePageState {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: _threadMeta(thread),
+        trailing: _threadMenu(thread),
         onTap: () {
           Navigator.pop(context);
           _openThread(_threadId(thread));
