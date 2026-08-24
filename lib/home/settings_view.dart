@@ -11,61 +11,65 @@ extension _SettingsView on _RemoteHomePageState {
           style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
         ),
       ),
-      _settingsSection('Connection', [
+      _settingsSection('Connect to a desktop', [
         TextField(
           controller: endpoint,
           decoration: const InputDecoration(
             labelText: 'Desktop endpoint',
             hintText: 'https://...trycloudflare.com',
           ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: accessToken,
-          decoration: const InputDecoration(labelText: 'Device token'),
-          obscureText: true,
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: busy ? null : connect,
-                icon: const Icon(Icons.login),
-                label: const Text('Connect'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            IconButton(
-              onPressed: busy ? null : _clearToken,
-              tooltip: 'Clear token',
-              icon: const Icon(Icons.link_off),
-            ),
-          ],
-        ),
-      ]),
-      _settingsSection('Pair new device', [
-        TextField(
-          controller: pairingToken,
-          decoration: const InputDecoration(labelText: 'One-time pairing code'),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: deviceName,
-          decoration: const InputDecoration(labelText: 'Device name'),
+          keyboardType: TextInputType.url,
         ),
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: busy ? null : pair,
-            icon: const Icon(Icons.add_link),
-            label: const Text('Pair'),
+          child: FilledButton.icon(
+            onPressed: busy ? null : connect,
+            icon: const Icon(Icons.login),
+            label: const Text('Connect'),
           ),
         ),
       ]),
-      Text(message, style: Theme.of(context).textTheme.bodySmall),
+      _settingsSection('Connection history', [
+        if (connections.isEmpty)
+          const Text(
+            'No saved connections',
+            style: TextStyle(color: Colors.white54),
+          )
+        else
+          for (final record in connections) _connectionEntry(record),
+      ]),
     ],
+  );
+
+  Widget _connectionEntry(Map<String, String> record) => ListTile(
+    contentPadding: EdgeInsets.zero,
+    title: Text(record['name'] ?? record['endpoint'] ?? ''),
+    subtitle: Text(
+      record['endpoint'] ?? '',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    ),
+    trailing: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Connect',
+          onPressed: busy ? null : () => _connectSaved(record),
+          icon: const Icon(Icons.login),
+        ),
+        IconButton(
+          tooltip: 'Edit',
+          onPressed: busy ? null : () => _editConnection(record),
+          icon: const Icon(Icons.edit_outlined),
+        ),
+        IconButton(
+          tooltip: 'Delete',
+          onPressed: busy ? null : () => _deleteConnection(record),
+          icon: const Icon(Icons.delete_outline),
+        ),
+      ],
+    ),
   );
 
   Widget _settingsSection(String title, List<Widget> children) => Padding(

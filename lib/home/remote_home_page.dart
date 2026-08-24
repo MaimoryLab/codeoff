@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
@@ -56,12 +58,11 @@ class RemoteHomePage extends StatefulWidget {
 class _RemoteHomePageState extends State<RemoteHomePage> {
   static const endpointKey = 'desktop_endpoint';
   static const tokenKey = 'device_token';
+  static const connectionsKey = 'connections';
   static const permissionModeKey = 'permission_mode';
   static const secureStorage = FlutterSecureStorage();
   static const threadPageSize = 100;
   final endpoint = TextEditingController();
-  final pairingToken = TextEditingController();
-  final deviceName = TextEditingController(text: 'Phone');
   final accessToken = TextEditingController();
   final input = TextEditingController();
   final search = TextEditingController();
@@ -71,6 +72,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   Future<void>? threadReload;
   List<Map<String, dynamic>> threads = [];
   List<Map<String, dynamic>> approvals = [];
+  List<Map<String, String>> connections = [];
   List<Map<String, dynamic>> history = [];
   String? selectedThread;
   String? selectedProject;
@@ -81,6 +83,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   String message = 'Enter the desktop endpoint to begin.';
   bool busy = false;
   bool connected = false;
+  String? activeConnectionId;
   bool settingsOpen = true;
   bool loadingHistory = false;
   bool threadClaiming = false;
@@ -102,14 +105,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     _releaseSelectedThread();
     eventSubscription?.cancel();
     threadRefreshTimer?.cancel();
-    for (final controller in [
-      endpoint,
-      pairingToken,
-      deviceName,
-      accessToken,
-      input,
-      search,
-    ]) {
+    for (final controller in [endpoint, accessToken, input, search]) {
       controller.dispose();
     }
     super.dispose();
@@ -125,29 +121,133 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     if (mounted) setState(() => attachments.remove(attachment));
   }
 
-  Future<void> pair() async {
-    await _run('Pairing...', () async {
-      await _saveConnection();
-      final client = RemoteApi(endpoint.text);
-      final value = await client.pair(pairingToken.text, deviceName.text);
-      accessToken.text = _stringValue(value, 'token');
-      await connect();
+  Future<void> connect() async {
+    await _run('Connecting...', () async {
+      final endpointValue = endpoint.text.trim();
+      if (endpointValue.isEmpty) throw ApiException('Endpoint is required');
+      var token = accessToken.text.trim();
+      final saved = connections.where(
+        (item) => item['endpoint'] == endpointValue,
+      );
+      if (saved.isNotEmpty) {
+        token = saved.first['token']!;
+      } else if (activeConnectionId == null ||
+          connections.any(
+            (item) =>
+                item['serverId'] == activeConnectionId &&
+                item['endpoint'] != endpointValue,
+          )) {
+        token = '';
+      }
+      Map<String, dynamic>? pairing;
+      if (token.isEmpty) {
+        pairing = await _pairDialog();
+        if (pairing == null) return;
+        final value = await RemoteApi(endpointValue)
+            .pair('${pairing['token']}', '${pairing['name']}');
+        token = _stringValue(value, 'token');
+        pairing = _serverFrom(value);
+      }
+      await _connectRecord(endpointValue, token, pairing: pairing);
     });
   }
 
-  Future<void> connect() async {
-    await _run('Connecting...', () async {
-      await _saveConnection();
-      final client = RemoteApi(endpoint.text, token: accessToken.text);
-      await client.status();
-      api = client;
-      connected = true;
-      await _reloadThreads();
-      _listenEvents(client);
-      _startThreadRefresh();
-      settingsOpen = false;
-      message = 'Connected';
+  Future<void> _connectRecord(
+    String endpointValue,
+    String token, {
+    Map<String, dynamic>? pairing,
+  }) async {
+    await _disconnect();
+    final client = RemoteApi(endpointValue, token: token);
+    final status = await client.status();
+    final server = _serverFrom(status);
+    final serverId = '${server['id'] ?? pairing?['id'] ?? endpointValue}';
+    final previous = connections.where((item) => item['serverId'] == serverId);
+    final record = <String, String>{
+      'serverId': serverId,
+      'name': previous.isEmpty
+          ? '${server['name'] ?? pairing?['name'] ?? endpointValue}'
+          : previous.first['name']!,
+      'endpoint': endpointValue,
+      'token': token,
+    };
+    final index = connections.indexWhere(
+      (item) => item['serverId'] == record['serverId'],
+    );
+    if (index == -1) {
+      connections = [record, ...connections];
+    } else {
+      connections = [...connections]
+        ..[index] = {...connections[index], ...record};
+    }
+    activeConnectionId = record['serverId'];
+    endpoint.text = endpointValue;
+    accessToken.text = token;
+    await _saveConnection();
+    api = client;
+    connected = true;
+    await _reloadThreads();
+    _listenEvents(client);
+    _startThreadRefresh();
+    settingsOpen = false;
+    message = 'Connected';
+    _toast('Connected to ${record['name']}');
+  }
+
+  Future<Map<String, dynamic>?> _pairDialog() {
+    final token = TextEditingController();
+    final name = TextEditingController(text: _defaultDeviceName);
+    return showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Pair this device'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: token,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Pairing code'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: name,
+              decoration: const InputDecoration(labelText: 'Device name'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (token.text.trim().isEmpty || name.text.trim().isEmpty) return;
+              Navigator.pop(dialogContext, {
+                'token': token.text.trim(),
+                'name': name.text.trim(),
+              });
+            },
+            child: const Text('Pair'),
+          ),
+        ],
+      ),
+    ).whenComplete(() {
+      token.dispose();
+      name.dispose();
     });
+  }
+
+  String get _defaultDeviceName => Platform.localHostname.trim().isEmpty
+      ? 'Mobile device'
+      : Platform.localHostname;
+
+  Map<String, dynamic> _serverFrom(dynamic value) {
+    if (value is! Map) return {};
+    final server = value['server'];
+    if (server is Map) return Map<String, dynamic>.from(server);
+    return {};
   }
 
   void _listenEvents(RemoteApi client) {
@@ -747,7 +847,10 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         final disconnected = error is ApiException && error.isConnectionFailure;
         setState(() {
           message = error.toString();
-          if (disconnected) connected = false;
+          if (disconnected) {
+            connected = false;
+            activeConnectionId = null;
+          }
         });
         if (disconnected) threadRefreshTimer?.cancel();
         ScaffoldMessenger.maybeOf(context)
@@ -756,6 +859,73 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     } finally {
       if (mounted) setState(() => busy = false);
     }
+  }
+
+  void _toast(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  Future<void> _disconnect() async {
+    _releaseSelectedThread();
+    await eventSubscription?.cancel();
+    eventSubscription = null;
+    threadRefreshTimer?.cancel();
+    threadRefreshTimer = null;
+    api = null;
+    connected = false;
+    activeConnectionId = null;
+  }
+
+  Future<void> _connectSaved(Map<String, String> record) async {
+    endpoint.text = record['endpoint'] ?? '';
+    accessToken.text = record['token'] ?? '';
+    await connect();
+  }
+
+  Future<void> _editConnection(Map<String, String> record) async {
+    final name = TextEditingController(text: record['name']);
+    final changed = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit connection'),
+        content: TextField(
+          controller: name,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, name.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    name.dispose();
+    if (!mounted || changed == null || changed.isEmpty) return;
+    final index = connections.indexOf(record);
+    if (index == -1) return;
+    setState(
+      () =>
+          connections = [...connections]
+            ..[index] = {...record, 'name': changed},
+    );
+    await _saveConnection();
+  }
+
+  Future<void> _deleteConnection(Map<String, String> record) async {
+    if (record['serverId'] == activeConnectionId) await _disconnect();
+    if (!mounted) return;
+    setState(() => connections = [...connections]..remove(record));
+    await _saveConnection();
+    _toast('Connection removed');
   }
 
   @override
@@ -821,15 +991,44 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   Future<void> _restoreConnection() async {
     try {
+      final savedConnections = await secureStorage.read(key: connectionsKey);
       final savedEndpoint = await secureStorage.read(key: endpointKey);
       final savedToken = await secureStorage.read(key: tokenKey);
       final savedPermission = await secureStorage.read(key: permissionModeKey);
       if (!mounted) return;
+      if (savedConnections != null && savedConnections.isNotEmpty) {
+        final value = jsonDecode(savedConnections);
+        if (value is List) {
+          connections = value
+              .whereType<Map>()
+              .map(
+                (item) => item.map((key, value) => MapEntry('$key', '$value')),
+              )
+              .where(
+                (item) =>
+                    item['endpoint']?.isNotEmpty == true &&
+                    item['token']?.isNotEmpty == true,
+              )
+              .toList();
+        }
+      }
       if (endpoint.text.isEmpty && savedEndpoint != null) {
         endpoint.text = savedEndpoint;
       }
       if (accessToken.text.isEmpty && savedToken != null) {
         accessToken.text = savedToken;
+      }
+      if (connections.isEmpty &&
+          endpoint.text.trim().isNotEmpty &&
+          accessToken.text.trim().isNotEmpty) {
+        connections = [
+          {
+            'serverId': endpoint.text.trim(),
+            'name': endpoint.text.trim(),
+            'endpoint': endpoint.text.trim(),
+            'token': accessToken.text.trim(),
+          },
+        ];
       }
       setState(() {
         permissionMode = RemotePermissionMode.values.firstWhere(
@@ -853,6 +1052,10 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   Future<void> _saveConnection() async {
     try {
+      await secureStorage.write(
+        key: connectionsKey,
+        value: jsonEncode(connections),
+      );
       final endpointValue = endpoint.text.trim();
       if (endpointValue.isEmpty) {
         await secureStorage.delete(key: endpointKey);
@@ -868,10 +1071,5 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     } catch (_) {
       // A storage failure must not prevent an otherwise valid connection.
     }
-  }
-
-  void _clearToken() {
-    setState(accessToken.clear);
-    unawaited(secureStorage.delete(key: tokenKey));
   }
 }
