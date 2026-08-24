@@ -16,6 +16,12 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
+class RemoteAttachment {
+  const RemoteAttachment({required this.name, required this.path});
+  final String name;
+  final String path;
+}
+
 class RemoteApi {
   RemoteApi(String endpoint, {this.token})
     : base = Uri.parse(endpoint.trim().replaceFirst(RegExp(r'/+$'), ''));
@@ -59,19 +65,71 @@ class RemoteApi {
   Future<dynamic> archiveThread(String threadId) =>
       _request('POST', '/api/v1/threads/$threadId/archive', body: {});
 
-  Future<dynamic> startTurn(String threadId, String input) => _request(
+  Future<dynamic> startTurn(
+    String threadId,
+    String input, {
+    List<RemoteAttachment> attachments = const [],
+  }) => _request(
     'POST',
     '/api/v1/threads/$threadId/turns',
-    body: {'input': input},
+    body: _turnBody(input, attachments),
   );
 
-  Future<dynamic> steerTurn(String threadId, String turnId, String input) =>
-      _request(
-        'POST',
-        '/api/v1/turns/$turnId/steer',
-        query: {'threadId': threadId},
-        body: {'input': input},
+  Future<dynamic> steerTurn(
+    String threadId,
+    String turnId,
+    String input, {
+    List<RemoteAttachment> attachments = const [],
+  }) => _request(
+    'POST',
+    '/api/v1/turns/$turnId/steer',
+    query: {'threadId': threadId},
+    body: _turnBody(input, attachments),
+  );
+
+  Future<RemoteAttachment> upload(
+    String name,
+    Stream<List<int>> bytes,
+    int length,
+  ) async {
+    final client = HttpClient();
+    try {
+      final request = await client.postUrl(
+        _uri('/api/v1/files', {'name': name}),
       );
+      _authorize(request);
+      request.contentLength = length;
+      request.headers.contentType = ContentType('application', 'octet-stream');
+      await request.addStream(bytes);
+      final response = await request.close();
+      final text = await response.transform(utf8.decoder).join();
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw ApiException(
+          text.isEmpty ? 'Upload failed (${response.statusCode})' : text.trim(),
+          statusCode: response.statusCode,
+        );
+      }
+      final value = jsonDecode(text) as Map<String, dynamic>;
+      return RemoteAttachment(name: name, path: '${value['path'] ?? ''}');
+    } on SocketException catch (error) {
+      throw ApiException(error.message);
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  Map<String, dynamic> _turnBody(
+    String input,
+    List<RemoteAttachment> attachments,
+  ) => {
+    'input': input,
+    if (attachments.isNotEmpty)
+      'attachments': attachments
+          .map(
+            (attachment) => {'name': attachment.name, 'path': attachment.path},
+          )
+          .toList(),
+  };
 
   Future<void> approve(int requestId, String decision) async {
     await _request(
