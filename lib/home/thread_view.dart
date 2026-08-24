@@ -76,16 +76,18 @@ extension _ThreadView on _RemoteHomePageState {
   }
 
   Future<void> _renameThread(Map<String, dynamic> thread) async {
-    final controller = TextEditingController(text: _threadTitle(thread));
-    final name = await showDialog<String>(
+    final initialName = _threadTitle(thread);
+    var name = initialName;
+    final renamed = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Rename thread'),
-        content: TextField(
-          controller: controller,
+        content: TextFormField(
+          initialValue: initialName,
           autofocus: true,
           textInputAction: TextInputAction.done,
-          onSubmitted: (value) => Navigator.pop(context, value.trim()),
+          onChanged: (value) => name = value,
+          onFieldSubmitted: (value) => Navigator.pop(context, value.trim()),
         ),
         actions: [
           TextButton(
@@ -93,18 +95,17 @@ extension _ThreadView on _RemoteHomePageState {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            onPressed: () => Navigator.pop(context, name.trim()),
             child: const Text('Save'),
           ),
         ],
       ),
     );
-    controller.dispose();
-    if (!mounted || name == null || name.isEmpty) return;
+    if (!mounted || renamed == null || renamed.isEmpty) return;
     final id = _threadId(thread);
     await _run('Renaming...', () async {
-      await api!.renameThread(id, name);
-      _setThreadName(thread, name);
+      await api!.renameThread(id, renamed);
+      _setThreadName(thread, renamed);
     });
   }
 
@@ -208,28 +209,69 @@ extension _ThreadView on _RemoteHomePageState {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          child: Column(
             children: [
-              Expanded(
-                child: TextField(
-                  controller: input,
-                  minLines: 1,
-                  maxLines: 5,
-                  decoration: const InputDecoration(
-                    hintText: 'Message',
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 13,
-                    ),
+              if (attachments.isNotEmpty)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      for (final attachment in attachments)
+                        InputChip(
+                          avatar: Icon(
+                            attachment.name.toLowerCase().endsWith('.png') ||
+                                    attachment.name.toLowerCase().endsWith(
+                                      '.jpg',
+                                    ) ||
+                                    attachment.name.toLowerCase().endsWith(
+                                      '.jpeg',
+                                    )
+                                ? Icons.image_outlined
+                                : Icons.insert_drive_file_outlined,
+                            size: 16,
+                          ),
+                          label: Text(
+                            attachment.name,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          onDeleted: busy
+                              ? null
+                              : () => removeAttachment(attachment),
+                        ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: busy ? null : sendTurn,
-                tooltip: 'Send',
-                icon: const Icon(Icons.send),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  IconButton(
+                    onPressed: busy ? null : pickAttachments,
+                    tooltip: 'Attach file or image',
+                    icon: const Icon(Icons.attach_file),
+                  ),
+                  Expanded(
+                    child: TextField(
+                      controller: input,
+                      minLines: 1,
+                      maxLines: 5,
+                      decoration: const InputDecoration(
+                        hintText: 'Message',
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filled(
+                    onPressed: busy ? null : sendTurn,
+                    tooltip: 'Send',
+                    icon: const Icon(Icons.send),
+                  ),
+                ],
               ),
             ],
           ),

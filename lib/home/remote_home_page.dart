@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
@@ -49,6 +50,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   bool settingsOpen = true;
   bool loadingHistory = false;
   String? loadedHistoryFor;
+  List<PlatformFile> attachments = [];
 
   @override
   void initState() {
@@ -72,6 +74,16 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> pickAttachments() async {
+    final picked = await FilePicker.pickFiles();
+    if (!mounted || picked.isEmpty) return;
+    setState(() => attachments = [...attachments, ...picked]);
+  }
+
+  void removeAttachment(PlatformFile attachment) {
+    if (mounted) setState(() => attachments.remove(attachment));
   }
 
   Future<void> pair() async {
@@ -280,7 +292,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   Future<void> sendTurn() async {
     final id = selectedThread;
     final text = input.text.trim();
-    if (id == null || text.isEmpty) return;
+    if (id == null || (text.isEmpty && attachments.isEmpty)) return;
     await _run('Sending...', () async {
       if (!mounted || selectedThread != id) return;
       final thread = threads.firstWhere(
@@ -289,6 +301,16 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       );
       if (_threadNeedsResume(thread)) await api!.resumeThread(id);
       final active = remoteThreadIsActive(thread);
+      final uploaded = <RemoteAttachment>[];
+      for (final attachment in attachments) {
+        uploaded.add(
+          await api!.upload(
+            attachment.name,
+            attachment.readAsByteStream(),
+            await attachment.length(),
+          ),
+        );
+      }
       dynamic response;
       if (active) {
         var turnId = activeTurnId;
@@ -299,14 +321,22 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             statusCode: 409,
           );
         }
-        response = await api!.steerTurn(id, turnId, text);
+        response = await api!.steerTurn(
+          id,
+          turnId,
+          text,
+          attachments: uploaded,
+        );
       } else {
-        response = await api!.startTurn(id, text);
+        response = await api!.startTurn(id, text, attachments: uploaded);
       }
       if (!mounted || selectedThread != id) return;
       final responseTurnId = activeTurnIdFrom(response);
       setState(() {
-        if (input.text.trim() == text) input.clear();
+        if (input.text.trim() == text) {
+          input.clear();
+          attachments = [];
+        }
         history = [
           ...history,
           {'role': 'user', 'content': text},
@@ -354,10 +384,14 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     try {
       final value = await api!.thread(id);
       if (!mounted || selectedThread != id) return;
+      final snapshotSummary = processingSummaryFromThread(value);
       setState(() {
         history = _historyItems(value);
         activeTurnId = activeTurnIdFrom(value);
-        if (activeTurnId.isEmpty) {
+        if (snapshotSummary.isNotEmpty) {
+          processingSummary = snapshotSummary;
+          processingItemId = '';
+        } else if (activeTurnId.isEmpty) {
           processingSummary = '';
           processingItemId = '';
         } else if (processingSummary.isEmpty) {
