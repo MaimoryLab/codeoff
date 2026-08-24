@@ -52,8 +52,17 @@ class RemoteApi {
   Future<dynamic> thread(String threadId) =>
       _request('GET', '/api/v1/threads/$threadId');
 
-  Future<dynamic> startThread() =>
-      _request('POST', '/api/v1/threads', body: {});
+  Future<dynamic> directories({String? path}) => _request(
+    'GET',
+    '/api/v1/directories',
+    query: {if (path != null && path.trim().isNotEmpty) 'path': path.trim()},
+  );
+
+  Future<dynamic> startThread({String? cwd}) => _request(
+    'POST',
+    '/api/v1/threads',
+    body: {if (cwd != null && cwd.trim().isNotEmpty) 'cwd': cwd.trim()},
+  );
 
   Future<dynamic> resumeThread(String threadId) =>
       _request('POST', '/api/v1/threads/$threadId/resume', body: {});
