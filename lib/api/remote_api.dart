@@ -61,46 +61,43 @@ class RemoteApi {
     body: {'token': pairingToken, 'name': name},
   );
 
-  Future<dynamic> status() => _request('GET', '/api/v1/status');
+  Future<dynamic> status() => _request('status');
 
   Future<dynamic> threads({String? cursor, int? limit}) => _request(
-    'GET',
-    '/api/v1/threads',
-    query: {
+    'thread/list',
+    params: {
       if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
-      if (limit != null) 'limit': '$limit',
+      if (limit != null) 'limit': limit,
     },
   );
 
   Future<dynamic> thread(String threadId) =>
-      _request('GET', '/api/v1/threads/$threadId');
+      _request('thread/read', params: {'threadId': threadId});
 
   Future<dynamic> directories({String? path}) => _request(
-    'GET',
-    '/api/v1/directories',
-    query: {if (path != null && path.trim().isNotEmpty) 'path': path.trim()},
+    'directories',
+    params: {if (path != null && path.trim().isNotEmpty) 'path': path.trim()},
   );
 
   Future<dynamic> startThread({String? cwd}) => _request(
-    'POST',
-    '/api/v1/threads',
-    body: {if (cwd != null && cwd.trim().isNotEmpty) 'cwd': cwd.trim()},
+    'thread/start',
+    params: {if (cwd != null && cwd.trim().isNotEmpty) 'cwd': cwd.trim()},
   );
 
   Future<dynamic> resumeThread(String threadId) =>
-      _request('POST', '/api/v1/threads/$threadId/resume', body: {});
+      _request('thread/resume', params: {'threadId': threadId});
 
   Future<dynamic> releaseThread(String threadId) =>
-      _request('POST', '/api/v1/threads/$threadId/release', body: {});
+      _request('thread/release', params: {'threadId': threadId});
 
   Future<dynamic> takeOverThread(String threadId) =>
-      _request('POST', '/api/v1/threads/$threadId/takeover', body: {});
+      _request('thread/takeover', params: {'threadId': threadId});
 
   Future<dynamic> renameThread(String threadId, String name) =>
-      _request('POST', '/api/v1/threads/$threadId/name', body: {'name': name});
+      _request('thread/name/set', params: {'threadId': threadId, 'name': name});
 
   Future<dynamic> archiveThread(String threadId) =>
-      _request('POST', '/api/v1/threads/$threadId/archive', body: {});
+      _request('thread/archive', params: {'threadId': threadId});
 
   Future<dynamic> startTurn(
     String threadId,
@@ -108,9 +105,9 @@ class RemoteApi {
     List<RemoteAttachment> attachments = const [],
     RemotePermissionMode permissions = RemotePermissionMode.requestApproval,
   }) => _request(
-    'POST',
-    '/api/v1/threads/$threadId/turns',
-    body: {
+    'turn/start',
+    params: {
+      'threadId': threadId,
       ..._turnBody(input, attachments),
       'approvalPolicy': permissions.approvalPolicy,
       'approvalsReviewer': permissions.approvalsReviewer,
@@ -124,10 +121,12 @@ class RemoteApi {
     String input, {
     List<RemoteAttachment> attachments = const [],
   }) => _request(
-    'POST',
-    '/api/v1/turns/$turnId/steer',
-    query: {'threadId': threadId},
-    body: _turnBody(input, attachments),
+    'turn/steer',
+    params: {
+      'threadId': threadId,
+      'turnId': turnId,
+      ..._turnBody(input, attachments),
+    },
   );
 
   Future<RemoteAttachment> upload(String name, Stream<List<int>> bytes) async {
@@ -137,11 +136,8 @@ class RemoteApi {
       data.addAll(chunk);
     }
     final value = await _request(
-      'POST',
-      '/api/v1/files',
-      query: {'name': name},
-      binary: base64Encode(data),
-      contentType: ContentType('application', 'octet-stream').mimeType,
+      'upload',
+      params: {'name': name, 'data': base64Encode(data)},
     ) as Map<String, dynamic>;
     return RemoteAttachment(name: name, path: '${value['path'] ?? ''}');
   }
@@ -161,9 +157,8 @@ class RemoteApi {
 
   Future<void> approve(int requestId, String decision) async {
     await _request(
-      'POST',
-      '/api/v1/approvals/$requestId',
-      body: {'decision': decision},
+      'approval/respond',
+      params: {'requestId': requestId, 'decision': decision},
     );
   }
 
@@ -189,12 +184,8 @@ class RemoteApi {
   }
 
   Future<dynamic> _request(
-    String method,
-    String path, {
-    Map<String, dynamic>? body,
-    Map<String, String>? query,
-    String? binary,
-    String? contentType,
+    String method, {
+    Map<String, dynamic> params = const {},
   }) async {
     await _ensureConnected();
     final id = ++_nextRequestId;
@@ -206,17 +197,7 @@ class RemoteApi {
       throw ApiException('WebSocket is not connected');
     }
     try {
-      socket.add(
-        jsonEncode({
-          'id': id,
-          'method': method,
-          'path': path,
-          if (query != null && query.isNotEmpty) 'query': query,
-          'body': ?body,
-          'binary': ?binary,
-          'contentType': ?contentType,
-        }),
-      );
+      socket.add(jsonEncode({'id': id, 'method': method, 'params': params}));
     } catch (error) {
       _pending.remove(id);
       _failConnection(socket, error);
@@ -299,6 +280,12 @@ class RemoteApi {
     try {
       final value = jsonDecode('$data');
       if (value is! Map) return;
+      if (value['method'] is String) {
+        final event = Map<String, dynamic>.from(value);
+        if (event['params'] is! Map) event['params'] = <String, dynamic>{};
+        _events.add(event);
+        return;
+      }
       final id = value['id'];
       if (id is int) {
         final completer = _pending.remove(id);
@@ -317,9 +304,6 @@ class RemoteApi {
           completer.complete(value['result']);
         }
         return;
-      }
-      if (value['method'] is String && value['params'] is Map) {
-        _events.add(Map<String, dynamic>.from(value));
       }
     } catch (error) {
       _failConnection(socket, error);

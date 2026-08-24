@@ -66,7 +66,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   final search = TextEditingController();
   RemoteApi? api;
   StreamSubscription<Map<String, dynamic>>? eventSubscription;
-  Timer? threadRefreshTimer;
   Future<void>? threadReload;
   List<Map<String, dynamic>> threads = [];
   List<Map<String, dynamic>> approvals = [];
@@ -102,7 +101,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   void dispose() {
     _releaseSelectedThread();
     eventSubscription?.cancel();
-    threadRefreshTimer?.cancel();
     for (final controller in [endpoint, accessToken, input, search]) {
       controller.dispose();
     }
@@ -186,7 +184,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     connected = true;
     await _reloadThreads();
     _listenEvents(client);
-    _startThreadRefresh();
     settingsOpen = false;
     message = 'Connected';
     _toast('Connected to ${record['name']}');
@@ -279,6 +276,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             }
             threads.sort(compareRemoteThreads);
           });
+          unawaited(_reloadThreads());
         }
         if (method == 'thread/name/updated') {
           final name = '${params['threadName'] ?? params['name'] ?? ''}'.trim();
@@ -288,6 +286,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
                 if (_threadId(thread) == threadId) thread['name'] = name;
               }
             });
+            unawaited(_reloadThreads());
           }
         }
         if (method == 'thread/archived') {
@@ -295,6 +294,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             threads.removeWhere((thread) => _threadId(thread) == threadId);
           });
           if (selectedThread == threadId) _showThreads();
+          unawaited(_reloadThreads());
         }
         if (method == 'item/agentMessage/delta' && threadId == selectedThread) {
           _appendAssistantDelta(params);
@@ -343,6 +343,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             processingItemId = '';
           });
           _loadHistory(selectedThread, force: true);
+          unawaited(_reloadThreads());
         }
       },
       onError: (Object error) {
@@ -410,13 +411,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     } catch (error) {
       if (mounted) setState(() => message = error.toString());
     }
-  }
-
-  void _startThreadRefresh() {
-    threadRefreshTimer?.cancel();
-    threadRefreshTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      if (connected) unawaited(_reloadThreads());
-    });
   }
 
   Future<void> createThread() async {
@@ -850,7 +844,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             activeConnectionId = null;
           }
         });
-        if (disconnected) threadRefreshTimer?.cancel();
         ScaffoldMessenger.maybeOf(context)
             ?.showSnackBar(SnackBar(content: Text(error.toString())));
       }
@@ -870,8 +863,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     _releaseSelectedThread();
     await eventSubscription?.cancel();
     eventSubscription = null;
-    threadRefreshTimer?.cancel();
-    threadRefreshTimer = null;
     await api?.close();
     api = null;
     connected = false;
