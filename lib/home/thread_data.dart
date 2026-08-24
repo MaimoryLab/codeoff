@@ -17,6 +17,26 @@ DateTime _unixTimestamp(num value) {
   ).toLocal();
 }
 
+bool remoteThreadIsActive(Map<String, dynamic> thread) {
+  final status = thread['status'];
+  return status is Map && status['type'] == 'active';
+}
+
+DateTime remoteThreadDate(Map<String, dynamic> thread) {
+  for (final key in ['updatedAt', 'lastUpdatedAt', 'createdAt', 'timestamp']) {
+    final parsed = parseRemoteTimestamp(thread[key]);
+    if (parsed != null) return parsed;
+  }
+  return DateTime.fromMillisecondsSinceEpoch(0);
+}
+
+int compareRemoteThreads(Map<String, dynamic> a, Map<String, dynamic> b) {
+  final activeA = remoteThreadIsActive(a);
+  final activeB = remoteThreadIsActive(b);
+  if (activeA != activeB) return activeA ? -1 : 1;
+  return remoteThreadDate(b).compareTo(remoteThreadDate(a));
+}
+
 extension _ThreadData on _RemoteHomePageState {
   List<Map<String, dynamic>> _visibleThreads() {
     final query = search.text.trim().toLowerCase();
@@ -60,15 +80,20 @@ extension _ThreadData on _RemoteHomePageState {
 
   List<String> _projects() {
     final latest = <String, DateTime>{};
+    final active = <String>{};
     for (final thread in threads) {
       final project = _threadProject(thread);
       if (project.isEmpty) continue;
-      final date = _threadDate(thread);
+      final date = remoteThreadDate(thread);
       final previous = latest[project];
       if (previous == null || date.isAfter(previous)) latest[project] = date;
+      if (remoteThreadIsActive(thread)) active.add(project);
     }
     final projects = latest.keys.toList()
       ..sort((a, b) {
+        if (active.contains(a) != active.contains(b)) {
+          return active.contains(a) ? -1 : 1;
+        }
         final result = latest[b]!.compareTo(latest[a]!);
         return result != 0 ? result : a.compareTo(b);
       });
@@ -92,19 +117,6 @@ extension _ThreadData on _RemoteHomePageState {
   String _projectLabel(String project) {
     if (!project.contains('/') && !project.contains('\\')) return project;
     return project.split(RegExp(r'[/\\]')).last;
-  }
-
-  DateTime _threadDate(Map<String, dynamic> thread) {
-    for (final key in [
-      'updatedAt',
-      'lastUpdatedAt',
-      'createdAt',
-      'timestamp',
-    ]) {
-      final parsed = parseRemoteTimestamp(thread[key]);
-      if (parsed != null) return parsed;
-    }
-    return DateTime.fromMillisecondsSinceEpoch(0);
   }
 
   String _timeLabel(DateTime date) {

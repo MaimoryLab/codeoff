@@ -111,6 +111,17 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             ? Map<String, dynamic>.from(event['params'] as Map)
             : <String, dynamic>{};
         final threadId = '${params['threadId'] ?? ''}';
+        final status = params['status'];
+        if (method == 'thread/status/changed' && status is Map) {
+          setState(() {
+            for (final thread in threads) {
+              if (_threadId(thread) == threadId) {
+                thread['status'] = Map<String, dynamic>.from(status);
+              }
+            }
+            threads.sort(compareRemoteThreads);
+          });
+        }
         if (method == 'item/agentMessage/delta' && threadId == selectedThread) {
           _appendAssistantDelta(params);
         }
@@ -169,7 +180,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           .where((thread) => _threadId(thread).isNotEmpty)
           .where((thread) => seen.add(_threadId(thread)))
           .toList();
-      next.sort((a, b) => _threadDate(b).compareTo(_threadDate(a)));
+      next.sort(compareRemoteThreads);
       if (!mounted) return;
       setState(() {
         threads = next;

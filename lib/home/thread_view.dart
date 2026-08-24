@@ -65,7 +65,17 @@ extension _ThreadView on _RemoteHomePageState {
 
   Widget _threadMeta(Map<String, dynamic> thread) => Row(
     children: [
-      Expanded(child: Text(_timeLabel(_threadDate(thread)))),
+      if (remoteThreadIsActive(thread)) ...[
+        const SizedBox(
+          width: 12,
+          height: 12,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        const SizedBox(width: 6),
+        const Text('Working'),
+        const SizedBox(width: 10),
+      ],
+      Expanded(child: Text(_timeLabel(remoteThreadDate(thread)))),
       if (_threadProject(thread).isNotEmpty)
         Flexible(
           child: Text(

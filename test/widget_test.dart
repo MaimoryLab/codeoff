@@ -14,6 +14,23 @@ void main() {
     );
   });
 
+  test('sorts active threads ahead of newer idle threads', () {
+    final threads = <Map<String, dynamic>>[
+      {
+        'id': 'new-idle',
+        'updatedAt': 200,
+        'status': {'type': 'idle'},
+      },
+      {
+        'id': 'old-active',
+        'updatedAt': 100,
+        'status': {'type': 'active'},
+      },
+    ]..sort(compareRemoteThreads);
+
+    expect(threads.map((thread) => thread['id']), ['old-active', 'new-idle']);
+  });
+
   testWidgets('renders remote control sections', (WidgetTester tester) async {
     await tester.pumpWidget(const CodexRemoteApp());
     expect(find.text('Codex Remote'), findsOneWidget);
