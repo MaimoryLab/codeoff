@@ -92,8 +92,11 @@ void main() {
 
   test('maps permission modes to Codex turn policies', () {
     expect(RemotePermissionMode.requestApproval.approvalPolicy, 'on-request');
-    expect(RemotePermissionMode.autoApprove.approvalPolicy, 'never');
+    expect(RemotePermissionMode.requestApproval.approvalsReviewer, 'user');
+    expect(RemotePermissionMode.autoApprove.approvalPolicy, 'on-request');
+    expect(RemotePermissionMode.autoApprove.approvalsReviewer, 'auto_review');
     expect(RemotePermissionMode.autoApprove.sandboxPolicy, 'workspaceWrite');
+    expect(RemotePermissionMode.fullAccess.approvalPolicy, 'never');
     expect(RemotePermissionMode.fullAccess.sandboxPolicy, 'dangerFullAccess');
   });
 

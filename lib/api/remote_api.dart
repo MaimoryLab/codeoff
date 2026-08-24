@@ -25,18 +25,20 @@ class RemoteAttachment {
 }
 
 enum RemotePermissionMode {
-  requestApproval('Request approval', 'on-request', 'workspaceWrite'),
-  autoApprove('Auto approve', 'never', 'workspaceWrite'),
-  fullAccess('Full access', 'never', 'dangerFullAccess');
+  requestApproval('Ask for approval', 'on-request', 'user', 'workspaceWrite'),
+  autoApprove('Approve for me', 'on-request', 'auto_review', 'workspaceWrite'),
+  fullAccess('Full access', 'never', 'user', 'dangerFullAccess');
 
   const RemotePermissionMode(
     this.label,
     this.approvalPolicy,
+    this.approvalsReviewer,
     this.sandboxPolicy,
   );
 
   final String label;
   final String approvalPolicy;
+  final String approvalsReviewer;
   final String sandboxPolicy;
 }
 
@@ -106,6 +108,7 @@ class RemoteApi {
     body: {
       ..._turnBody(input, attachments),
       'approvalPolicy': permissions.approvalPolicy,
+      'approvalsReviewer': permissions.approvalsReviewer,
       'sandboxPolicy': {'type': permissions.sandboxPolicy},
     },
   );
