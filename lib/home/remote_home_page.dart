@@ -56,6 +56,7 @@ class RemoteHomePage extends StatefulWidget {
 class _RemoteHomePageState extends State<RemoteHomePage> {
   static const endpointKey = 'desktop_endpoint';
   static const tokenKey = 'device_token';
+  static const permissionModeKey = 'permission_mode';
   static const secureStorage = FlutterSecureStorage();
   static const threadPageSize = 100;
   final endpoint = TextEditingController();
@@ -88,6 +89,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   String? loadedHistoryFor;
   final pendingReleases = <String>{};
   List<PlatformFile> attachments = [];
+  RemotePermissionMode permissionMode = RemotePermissionMode.requestApproval;
 
   @override
   void initState() {
@@ -474,7 +476,12 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           attachments: uploaded,
         );
       } else {
-        response = await api!.startTurn(id, text, attachments: uploaded);
+        response = await api!.startTurn(
+          id,
+          text,
+          attachments: uploaded,
+          permissions: permissionMode,
+        );
       }
       if (!mounted || selectedThread != id) return;
       final responseTurnId = activeTurnIdFrom(response);
@@ -814,6 +821,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     try {
       final savedEndpoint = await secureStorage.read(key: endpointKey);
       final savedToken = await secureStorage.read(key: tokenKey);
+      final savedPermission = await secureStorage.read(key: permissionModeKey);
       if (!mounted) return;
       if (endpoint.text.isEmpty && savedEndpoint != null) {
         endpoint.text = savedEndpoint;
@@ -821,8 +829,23 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       if (accessToken.text.isEmpty && savedToken != null) {
         accessToken.text = savedToken;
       }
+      setState(() {
+        permissionMode = RemotePermissionMode.values.firstWhere(
+          (mode) => mode.name == savedPermission,
+          orElse: () => RemotePermissionMode.requestApproval,
+        );
+      });
     } catch (_) {
       // Stored connection settings are optional; the user can enter them again.
+    }
+  }
+
+  Future<void> setPermissionMode(RemotePermissionMode mode) async {
+    setState(() => permissionMode = mode);
+    try {
+      await secureStorage.write(key: permissionModeKey, value: mode.name);
+    } catch (_) {
+      // Permission persistence is optional; the selected mode still applies.
     }
   }
 

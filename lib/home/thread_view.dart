@@ -260,6 +260,26 @@ extension _ThreadView on _RemoteHomePageState {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  PopupMenuButton<RemotePermissionMode>(
+                    enabled: !busy && _canEditThread,
+                    tooltip: permissionMode.label,
+                    icon: Icon(_permissionIcon(permissionMode)),
+                    onSelected: setPermissionMode,
+                    itemBuilder: (context) => [
+                      for (final mode in RemotePermissionMode.values)
+                        PopupMenuItem(
+                          value: mode,
+                          child: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Icon(_permissionIcon(mode)),
+                            title: Text(mode.label),
+                            trailing: mode == permissionMode
+                                ? const Icon(Icons.check)
+                                : null,
+                          ),
+                        ),
+                    ],
+                  ),
                   PopupMenuButton<FileType>(
                     enabled: !busy && _canEditThread,
                     tooltip: 'Attach file or image',
@@ -319,6 +339,12 @@ extension _ThreadView on _RemoteHomePageState {
       ),
     ],
   );
+
+  IconData _permissionIcon(RemotePermissionMode mode) => switch (mode) {
+    RemotePermissionMode.requestApproval => Icons.shield_outlined,
+    RemotePermissionMode.autoApprove => Icons.verified_user_outlined,
+    RemotePermissionMode.fullAccess => Icons.warning_amber,
+  };
 
   Widget _messageBubble(Map<String, dynamic> item) {
     final user = _messageRole(item) == 'user';

@@ -24,6 +24,22 @@ class RemoteAttachment {
   final String path;
 }
 
+enum RemotePermissionMode {
+  requestApproval('Request approval', 'on-request', 'workspaceWrite'),
+  autoApprove('Auto approve', 'never', 'workspaceWrite'),
+  fullAccess('Full access', 'never', 'dangerFullAccess');
+
+  const RemotePermissionMode(
+    this.label,
+    this.approvalPolicy,
+    this.sandboxPolicy,
+  );
+
+  final String label;
+  final String approvalPolicy;
+  final String sandboxPolicy;
+}
+
 class RemoteApi {
   RemoteApi(String endpoint, {this.token})
     : base = Uri.parse(endpoint.trim().replaceFirst(RegExp(r'/+$'), ''));
@@ -83,10 +99,15 @@ class RemoteApi {
     String threadId,
     String input, {
     List<RemoteAttachment> attachments = const [],
+    RemotePermissionMode permissions = RemotePermissionMode.requestApproval,
   }) => _request(
     'POST',
     '/api/v1/threads/$threadId/turns',
-    body: _turnBody(input, attachments),
+    body: {
+      ..._turnBody(input, attachments),
+      'approvalPolicy': permissions.approvalPolicy,
+      'sandboxPolicy': {'type': permissions.sandboxPolicy},
+    },
   );
 
   Future<dynamic> steerTurn(

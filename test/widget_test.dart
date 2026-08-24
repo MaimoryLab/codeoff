@@ -90,6 +90,13 @@ void main() {
     expect(ApiException('offline').isConnectionFailure, true);
   });
 
+  test('maps permission modes to Codex turn policies', () {
+    expect(RemotePermissionMode.requestApproval.approvalPolicy, 'on-request');
+    expect(RemotePermissionMode.autoApprove.approvalPolicy, 'never');
+    expect(RemotePermissionMode.autoApprove.sandboxPolicy, 'workspaceWrite');
+    expect(RemotePermissionMode.fullAccess.sandboxPolicy, 'dangerFullAccess');
+  });
+
   test('accepts only external HTTP links', () {
     expect(externalHttpUri('https://example.com/docs')?.host, 'example.com');
     expect(externalHttpUri('http://example.com'), isNotNull);
