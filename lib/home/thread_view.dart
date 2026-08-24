@@ -47,11 +47,34 @@ extension _ThreadView on _RemoteHomePageState {
 
   Widget _threadAppBarTitle(String id) {
     final cwd = _threadCwd(id);
+    final active = threads.any(
+      (thread) => _threadId(thread) == id && remoteThreadIsActive(thread),
+    );
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(_threadTitle(id), maxLines: 1, overflow: TextOverflow.ellipsis),
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                _threadTitle(id),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (active) ...[
+              const SizedBox(width: 8),
+              const SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 5),
+              const Text('Working', style: TextStyle(fontSize: 12)),
+            ],
+          ],
+        ),
         if (cwd.isNotEmpty)
           Text(
             cwd,
