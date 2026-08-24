@@ -249,6 +249,7 @@ extension _ThreadView on _RemoteHomePageState {
                   PopupMenuButton<FileType>(
                     enabled: !busy,
                     tooltip: 'Attach file or image',
+                    icon: const Icon(Icons.attach_file),
                     onSelected: pickAttachments,
                     itemBuilder: (context) => const [
                       PopupMenuItem(
@@ -268,7 +269,6 @@ extension _ThreadView on _RemoteHomePageState {
                         ),
                       ),
                     ],
-                    child: const Icon(Icons.attach_file),
                   ),
                   Expanded(
                     child: TextField(
