@@ -1,5 +1,14 @@
 part of 'remote_home_page.dart';
 
+Uri? externalHttpUri(String? href) {
+  final uri = Uri.tryParse(href ?? '');
+  return uri != null &&
+          uri.hasAuthority &&
+          (uri.scheme == 'http' || uri.scheme == 'https')
+      ? uri
+      : null;
+}
+
 extension _ThreadView on _RemoteHomePageState {
   Widget _projectsView() {
     final projects = _projects();
@@ -179,6 +188,20 @@ extension _ThreadView on _RemoteHomePageState {
           data: _messageText(item),
           selectable: true,
           styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)),
+          onTapLink: (_, href, _) async {
+            final uri = externalHttpUri(href);
+            if (uri == null) return;
+            try {
+              if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+                throw Exception('Could not open $uri');
+              }
+            } catch (error) {
+              if (mounted) {
+                ScaffoldMessenger.maybeOf(context)
+                    ?.showSnackBar(SnackBar(content: Text(error.toString())));
+              }
+            }
+          },
         ),
       ),
     );

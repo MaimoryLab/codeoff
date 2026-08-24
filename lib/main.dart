@@ -7,6 +7,7 @@ export 'home/remote_home_page.dart'
     show
         activeTurnIdFrom,
         compareRemoteThreads,
+        externalHttpUri,
         parseRemoteTimestamp,
         shouldRefreshRemoteHistory;
 

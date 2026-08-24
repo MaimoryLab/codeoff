@@ -71,6 +71,13 @@ void main() {
     expect(ApiException('offline').isConnectionFailure, true);
   });
 
+  test('accepts only external HTTP links', () {
+    expect(externalHttpUri('https://example.com/docs')?.host, 'example.com');
+    expect(externalHttpUri('http://example.com'), isNotNull);
+    expect(externalHttpUri('javascript:alert(1)'), isNull);
+    expect(externalHttpUri('/relative'), isNull);
+  });
+
   testWidgets('renders remote control sections', (WidgetTester tester) async {
     await tester.pumpWidget(const CodexRemoteApp());
     expect(find.text('Codex Remote'), findsOneWidget);
