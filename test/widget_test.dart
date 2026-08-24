@@ -45,6 +45,44 @@ void main() {
     expect(activeTurnIdFrom(response), 'active');
   });
 
+  test('summarizes processing from a polled thread snapshot', () {
+    expect(
+      processingSummaryFromThread({
+        'thread': {
+          'turns': [
+            {
+              'status': 'inProgress',
+              'items': [
+                {
+                  'type': 'commandExecution',
+                  'command': 'flutter test',
+                  'status': 'inProgress',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+      'Running: flutter test',
+    );
+    expect(
+      processingSummaryFromThread({
+        'status': 'inProgress',
+        'items': [
+          {
+            'type': 'reasoning',
+            'summary': ['Checking the failing test', 'Tracing its caller'],
+          },
+        ],
+      }),
+      'Thinking: Checking the failing test Tracing its caller',
+    );
+    expect(
+      processingSummaryFromThread({'status': 'completed', 'items': []}),
+      isEmpty,
+    );
+  });
+
   test('does not treat a business error as a disconnect', () {
     expect(
       ApiException('conflict', statusCode: 409).isConnectionFailure,

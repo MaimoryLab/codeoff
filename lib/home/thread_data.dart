@@ -39,7 +39,7 @@ int compareRemoteThreads(Map<String, dynamic> a, Map<String, dynamic> b) {
 
 String activeTurnIdFrom(dynamic value) {
   if (value is! Map) return '';
-  if (value['status'] == 'inProgress') return '${value['id'] ?? ''}';
+  if (_isInProgress(value['status'])) return '${value['id'] ?? ''}';
   final turns = value['turns'];
   if (turns is List) {
     for (final turn in turns.reversed) {
@@ -48,6 +48,48 @@ String activeTurnIdFrom(dynamic value) {
     }
   }
   return activeTurnIdFrom(value['thread'] ?? value['turn']);
+}
+
+bool _isInProgress(dynamic status) =>
+    status == 'inProgress' || status == 'in_progress';
+
+String processingSummaryFromThread(dynamic value) {
+  if (value is! Map) return '';
+  if (value['thread'] != null) {
+    return processingSummaryFromThread(value['thread']);
+  }
+  final turns = value['turns'];
+  if (turns is List) {
+    for (final turn in turns.reversed) {
+      if (turn is Map) return processingSummaryFromThread(turn);
+    }
+    return '';
+  }
+  final items = value['items'];
+  final active =
+      _isInProgress(value['status']) ||
+      items is List &&
+          items.whereType<Map>().any((item) => _isInProgress(item['status']));
+  if (!active || items is! List) return active ? 'Working...' : '';
+  for (final raw in items.reversed) {
+    if (raw is! Map) continue;
+    final item = Map<String, dynamic>.from(raw);
+    if (item['type'] == 'reasoning' && item['summary'] is List) {
+      final summary = (item['summary'] as List)
+          .map((part) => '$part'.trim())
+          .where((part) => part.isNotEmpty)
+          .join(' ');
+      if (summary.isNotEmpty) return 'Thinking: $summary';
+    }
+    final summary = processingSummaryFromItem(item);
+    if (summary.isNotEmpty) {
+      return item['status'] == null || _isInProgress(item['status'])
+          ? summary
+          : 'Working...';
+    }
+    if (item['type'] == 'agentMessage') return 'Working...';
+  }
+  return 'Working...';
 }
 
 String processingSummaryFromItem(dynamic value) {
