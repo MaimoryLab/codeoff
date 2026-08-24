@@ -49,7 +49,10 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   bool connected = false;
   bool settingsOpen = true;
   bool loadingHistory = false;
+  bool threadClaiming = false;
+  bool threadOwned = false;
   String? loadedHistoryFor;
+  final pendingReleases = <String>{};
   List<PlatformFile> attachments = [];
 
   @override
@@ -60,7 +63,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   @override
   void dispose() {
-    _unsubscribeSelectedThread();
+    _releaseSelectedThread();
     eventSubscription?.cancel();
     threadRefreshTimer?.cancel();
     for (final controller in [
@@ -263,6 +266,9 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         // A newly-created thread can be absent from list results briefly.
       });
       if (historyThread != null) await _loadHistory(historyThread, force: true);
+      if (pendingReleases.isNotEmpty) {
+        await _releaseThread(pendingReleases.first);
+      }
     } catch (error) {
       if (mounted) setState(() => message = error.toString());
     }
@@ -292,7 +298,9 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   Future<void> sendTurn() async {
     final id = selectedThread;
     final text = input.text.trim();
-    if (id == null || (text.isEmpty && attachments.isEmpty)) return;
+    if (id == null || !threadOwned || (text.isEmpty && attachments.isEmpty)) {
+      return;
+    }
     await _run('Sending...', () async {
       if (!mounted || selectedThread != id) return;
       final thread = threads.firstWhere(
@@ -407,7 +415,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   }
 
   void _openThread(String id) {
-    _unsubscribeSelectedThread(id);
+    _releaseSelectedThread(id);
     setState(() {
       selectedThread = id;
       selectedProject = null;
@@ -418,13 +426,16 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       processingSummary = '';
       processingItemId = '';
       history = [];
+      threadClaiming = true;
+      threadOwned = false;
     });
     _loadHistory(id);
+    _claimThread(id);
   }
 
   void _openSettings() {
     Navigator.of(context).maybePop();
-    _unsubscribeSelectedThread();
+    _releaseSelectedThread();
     setState(() {
       settingsOpen = true;
       selectedThread = null;
@@ -435,7 +446,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   void _showThreads() {
     Navigator.of(context).maybePop();
-    _unsubscribeSelectedThread();
+    _releaseSelectedThread();
     setState(() {
       settingsOpen = false;
       selectedThread = null;
@@ -446,7 +457,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   void _showRecent() {
     Navigator.of(context).maybePop();
-    _unsubscribeSelectedThread();
+    _releaseSelectedThread();
     setState(() {
       settingsOpen = false;
       selectedThread = null;
@@ -457,7 +468,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   void _showProjects() {
     Navigator.of(context).maybePop();
-    _unsubscribeSelectedThread();
+    _releaseSelectedThread();
     setState(() {
       settingsOpen = false;
       selectedThread = null;
@@ -468,7 +479,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   void _selectProject(String project) {
     Navigator.of(context).maybePop();
-    _unsubscribeSelectedThread();
+    _releaseSelectedThread();
     setState(() {
       settingsOpen = false;
       selectedThread = null;
@@ -477,15 +488,59 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     });
   }
 
-  void _unsubscribeSelectedThread([String? nextThread]) {
-    final id = selectedThread;
-    if (id != null && id != nextThread) unawaited(_unsubscribeThread(id));
+  Future<void> _claimThread(String id) async {
+    try {
+      final client = api;
+      if (client == null) throw ApiException('Not connected');
+      await client.resumeThread(id);
+      if (!mounted || selectedThread != id) {
+        await _releaseThread(id);
+        return;
+      }
+      setState(() {
+        threadClaiming = false;
+        threadOwned = true;
+      });
+    } catch (error) {
+      if (!mounted || selectedThread != id) return;
+      final conflict = error is ApiException && error.isConflict;
+      setState(() {
+        threadClaiming = false;
+        threadOwned = false;
+        message = conflict
+            ? 'Active in another app. This thread is read-only.'
+            : error.toString();
+      });
+    }
   }
 
-  Future<void> _unsubscribeThread(String id) async {
+  void _releaseSelectedThread([String? nextThread]) {
+    final id = selectedThread;
+    if (id == null || id == nextThread) return;
+    final owned = threadOwned;
+    threadOwned = false;
+    threadClaiming = false;
+    if (owned) unawaited(_releaseThread(id));
+  }
+
+  Future<void> _releaseThread(String id) async {
     try {
-      await api?.unsubscribeThread(id);
+      final client = api;
+      if (client == null) throw ApiException('Not connected');
+      final value = await client.releaseThread(id);
+      if (value is Map && value['released'] == true) {
+        pendingReleases.clear();
+        final selected = selectedThread;
+        if (selected != null && threadOwned) {
+          threadOwned = false;
+          threadClaiming = true;
+          await _claimThread(selected);
+        }
+      } else {
+        pendingReleases.add(id);
+      }
     } catch (error) {
+      pendingReleases.add(id);
       if (mounted) setState(() => message = error.toString());
     }
   }

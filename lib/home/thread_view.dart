@@ -179,6 +179,8 @@ extension _ThreadView on _RemoteHomePageState {
     ],
   );
 
+  bool get _canEditThread => threadOwned && !threadClaiming;
+
   Widget _threadView() => Column(
     children: [
       Expanded(
@@ -236,7 +238,7 @@ extension _ThreadView on _RemoteHomePageState {
                             attachment.name,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          onDeleted: busy
+                          onDeleted: busy || !_canEditThread
                               ? null
                               : () => removeAttachment(attachment),
                         ),
@@ -247,7 +249,7 @@ extension _ThreadView on _RemoteHomePageState {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   PopupMenuButton<FileType>(
-                    enabled: !busy,
+                    enabled: !busy && _canEditThread,
                     tooltip: 'Attach file or image',
                     icon: const Icon(Icons.attach_file),
                     onSelected: pickAttachments,
@@ -273,11 +275,16 @@ extension _ThreadView on _RemoteHomePageState {
                   Expanded(
                     child: TextField(
                       controller: input,
+                      readOnly: !_canEditThread,
                       minLines: 1,
                       maxLines: 5,
-                      decoration: const InputDecoration(
-                        hintText: 'Message',
-                        contentPadding: EdgeInsets.symmetric(
+                      decoration: InputDecoration(
+                        hintText: threadClaiming
+                            ? 'Checking access...'
+                            : _canEditThread
+                            ? 'Message'
+                            : 'Active in another app',
+                        contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 13,
                         ),
@@ -286,7 +293,7 @@ extension _ThreadView on _RemoteHomePageState {
                   ),
                   const SizedBox(width: 8),
                   IconButton.filled(
-                    onPressed: busy ? null : sendTurn,
+                    onPressed: busy || !_canEditThread ? null : sendTurn,
                     tooltip: 'Send',
                     icon: const Icon(Icons.send),
                   ),

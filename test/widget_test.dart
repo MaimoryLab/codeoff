@@ -84,10 +84,9 @@ void main() {
   });
 
   test('does not treat a business error as a disconnect', () {
-    expect(
-      ApiException('conflict', statusCode: 409).isConnectionFailure,
-      false,
-    );
+    final conflict = ApiException('conflict', statusCode: 409);
+    expect(conflict.isConnectionFailure, false);
+    expect(conflict.isConflict, true);
     expect(ApiException('offline').isConnectionFailure, true);
   });
 

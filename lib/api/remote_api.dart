@@ -12,6 +12,8 @@ class ApiException implements Exception {
       statusCode == HttpStatus.unauthorized ||
       statusCode! >= HttpStatus.internalServerError;
 
+  bool get isConflict => statusCode == HttpStatus.conflict;
+
   @override
   String toString() => message;
 }
@@ -56,8 +58,8 @@ class RemoteApi {
   Future<dynamic> resumeThread(String threadId) =>
       _request('POST', '/api/v1/threads/$threadId/resume', body: {});
 
-  Future<dynamic> unsubscribeThread(String threadId) =>
-      _request('POST', '/api/v1/threads/$threadId/unsubscribe', body: {});
+  Future<dynamic> releaseThread(String threadId) =>
+      _request('POST', '/api/v1/threads/$threadId/release', body: {});
 
   Future<dynamic> renameThread(String threadId, String name) =>
       _request('POST', '/api/v1/threads/$threadId/name', body: {'name': name});
