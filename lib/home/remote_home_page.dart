@@ -13,6 +13,39 @@ part 'settings_view.dart';
 part 'thread_view.dart';
 part 'home_scaffold.dart';
 
+class _DirectoryListing {
+  const _DirectoryListing({
+    required this.path,
+    required this.parent,
+    required this.directories,
+  });
+
+  final String path;
+  final String parent;
+  final List<Map<String, String>> directories;
+
+  factory _DirectoryListing.from(dynamic value) {
+    if (value is! Map) throw ApiException('Invalid directory response');
+    final entries = value['directories'];
+    return _DirectoryListing(
+      path: '${value['path'] ?? ''}',
+      parent: '${value['parent'] ?? ''}',
+      directories: entries is List
+          ? entries
+                .whereType<Map>()
+                .map(
+                  (entry) => {
+                    'name': '${entry['name'] ?? ''}',
+                    'path': '${entry['path'] ?? ''}',
+                  },
+                )
+                .where((entry) => entry['name']!.isNotEmpty)
+                .toList()
+          : const [],
+    );
+  }
+}
+
 class RemoteHomePage extends StatefulWidget {
   const RemoteHomePage({super.key});
 
@@ -284,11 +317,115 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   Future<void> createThread() async {
     await _run('Starting thread...', () async {
-      final value = await api!.startThread();
+      final cwd = await _selectDirectory();
+      if (cwd == null) return;
+      final value = await api!.startThread(cwd: cwd);
       final id = _idFromValue(value);
       await _reloadThreads();
       if (id.isNotEmpty) _openThread(id);
     });
+  }
+
+  Future<String?> _selectDirectory() async {
+    final client = api;
+    if (client == null) throw ApiException('Not connected');
+    var listing = _DirectoryListing.from(await client.directories());
+    if (!mounted) return null;
+    var loading = false;
+    String? error;
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          Future<void> openDirectory(String path) async {
+            setDialogState(() {
+              loading = true;
+              error = null;
+            });
+            try {
+              listing = _DirectoryListing.from(
+                await client.directories(path: path),
+              );
+            } catch (value) {
+              error = value.toString();
+            } finally {
+              if (dialogContext.mounted) {
+                setDialogState(() => loading = false);
+              }
+            }
+          }
+
+          return AlertDialog(
+            title: const Text('Choose startup folder'),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 360,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        tooltip: 'Parent folder',
+                        onPressed: loading || listing.parent.isEmpty
+                            ? null
+                            : () => openDirectory(listing.parent),
+                        icon: const Icon(Icons.arrow_upward),
+                      ),
+                      Expanded(
+                        child: Text(
+                          listing.path,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (error != null)
+                    Text(
+                      error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: loading
+                        ? const Center(child: CircularProgressIndicator())
+                        : listing.directories.isEmpty
+                        ? const Center(child: Text('No subfolders'))
+                        : ListView.builder(
+                            itemCount: listing.directories.length,
+                            itemBuilder: (context, index) {
+                              final directory = listing.directories[index];
+                              return ListTile(
+                                leading: const Icon(Icons.folder_outlined),
+                                title: Text(directory['name']!),
+                                trailing: const Icon(Icons.chevron_right),
+                                onTap: () => openDirectory(directory['path']!),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: loading ? null : () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: loading || listing.path.isEmpty
+                    ? null
+                    : () => Navigator.pop(dialogContext, listing.path),
+                child: const Text('Use folder'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   void _setThreadName(Map<String, dynamic> thread, String name) {
