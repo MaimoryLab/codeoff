@@ -322,7 +322,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       final value = await api!.startThread(cwd: cwd);
       final id = _idFromValue(value);
       await _reloadThreads();
-      if (id.isNotEmpty) _openThread(id);
+      if (id.isNotEmpty) _openThread(id, owned: true);
     });
   }
 
@@ -552,7 +552,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     }
   }
 
-  void _openThread(String id) {
+  void _openThread(String id, {bool owned = false}) {
     _releaseSelectedThread(id);
     setState(() {
       selectedThread = id;
@@ -564,12 +564,12 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       processingSummary = '';
       processingItemId = '';
       history = [];
-      threadClaiming = true;
-      threadOwned = false;
+      threadClaiming = !owned;
+      threadOwned = owned;
       threadConflict = false;
     });
     _loadHistory(id);
-    _claimThread(id);
+    if (!owned) _claimThread(id);
   }
 
   void _openSettings() {
