@@ -61,6 +61,9 @@ class RemoteApi {
   Future<dynamic> releaseThread(String threadId) =>
       _request('POST', '/api/v1/threads/$threadId/release', body: {});
 
+  Future<dynamic> takeOverThread(String threadId) =>
+      _request('POST', '/api/v1/threads/$threadId/takeover', body: {});
+
   Future<dynamic> renameThread(String threadId, String name) =>
       _request('POST', '/api/v1/threads/$threadId/name', body: {'name': name});
 

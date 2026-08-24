@@ -213,6 +213,18 @@ extension _ThreadView on _RemoteHomePageState {
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
           child: Column(
             children: [
+              if (threadConflict)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: FilledButton.tonalIcon(
+                      onPressed: busy ? null : _takeOverThread,
+                      icon: const Icon(Icons.lock_open),
+                      label: const Text('Take over'),
+                    ),
+                  ),
+                ),
               if (attachments.isNotEmpty)
                 Align(
                   alignment: Alignment.centerLeft,
@@ -283,7 +295,9 @@ extension _ThreadView on _RemoteHomePageState {
                             ? 'Checking access...'
                             : _canEditThread
                             ? 'Message'
-                            : 'Active in another app',
+                            : threadConflict
+                            ? 'Active in another app'
+                            : 'Unable to send',
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 13,

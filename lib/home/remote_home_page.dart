@@ -51,6 +51,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   bool loadingHistory = false;
   bool threadClaiming = false;
   bool threadOwned = false;
+  bool threadConflict = false;
   String? loadedHistoryFor;
   final pendingReleases = <String>{};
   List<PlatformFile> attachments = [];
@@ -428,6 +429,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       history = [];
       threadClaiming = true;
       threadOwned = false;
+      threadConflict = false;
     });
     _loadHistory(id);
     _claimThread(id);
@@ -500,6 +502,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       setState(() {
         threadClaiming = false;
         threadOwned = true;
+        threadConflict = false;
       });
     } catch (error) {
       if (!mounted || selectedThread != id) return;
@@ -507,6 +510,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       setState(() {
         threadClaiming = false;
         threadOwned = false;
+        threadConflict = conflict;
         message = conflict
             ? 'Active in another app. This thread is read-only.'
             : error.toString();
@@ -520,7 +524,46 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     final owned = threadOwned;
     threadOwned = false;
     threadClaiming = false;
+    threadConflict = false;
     if (owned) unawaited(_releaseThread(id));
+  }
+
+  Future<void> _takeOverThread() async {
+    final id = selectedThread;
+    if (id == null || !threadConflict) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Take over this thread?'),
+        content: const Text(
+          'This closes the desktop app using this thread. Other active threads in that app will also stop.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Take over'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true || selectedThread != id) return;
+    await _run('Taking over...', () async {
+      await api!.takeOverThread(id);
+      if (!mounted || selectedThread != id) {
+        await _releaseThread(id);
+        return;
+      }
+      setState(() {
+        threadOwned = true;
+        threadConflict = false;
+        message = 'Thread taken over';
+      });
+      await _loadHistory(id, force: true);
+    });
   }
 
   Future<void> _releaseThread(String id) async {
