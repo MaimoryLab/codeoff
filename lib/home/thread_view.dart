@@ -123,8 +123,10 @@ extension _ThreadView on _RemoteHomePageState {
               )
             : ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+                reverse: true,
                 itemCount: history.length,
-                itemBuilder: (context, index) => _messageBubble(history[index]),
+                itemBuilder: (context, index) =>
+                    _messageBubble(history[history.length - 1 - index]),
               ),
       ),
       SafeArea(
