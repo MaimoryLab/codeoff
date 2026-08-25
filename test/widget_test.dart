@@ -7,9 +7,10 @@ import 'package:flutter/material.dart';
 
 import 'package:codex_remote/api.dart';
 import 'package:codex_remote/home/remote_home_page.dart'
-    show rememberRemoteConnection, startPeriodicRefresh;
+    show startPeriodicRefresh;
 import 'package:codex_remote/home/pairing_payload.dart';
 import 'package:codex_remote/main.dart';
+import 'package:codex_remote/storage/connection_store.dart';
 
 void main() {
   test('parses Unix timestamps as dates', () {

@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -7,11 +6,12 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../i18n.dart';
+import '../storage/connection_store.dart';
+import '../storage/thread_cache.dart';
 import 'pairing_payload.dart';
 
 part 'thread_data.dart';
@@ -82,20 +82,10 @@ Timer startPeriodicRefresh({
   });
 }
 
-List<Map<String, String>> rememberRemoteConnection(
-  List<Map<String, String>> connections,
-  Map<String, String> record,
-) => [
-  record,
-  ...connections.where((item) => item['serverId'] != record['serverId']),
-];
-
 class _RemoteHomePageState extends State<RemoteHomePage> {
-  static const connectionsKey = 'connections';
-  static const permissionModeKey = 'permission_mode';
-  static const threadCacheDirectory = 'codex_remote_threads';
-  static const secureStorage = FlutterSecureStorage();
   static const threadPageSize = 100;
+  static const connectionStore = ConnectionStore(FlutterSecureStorage());
+  static const threadCache = ThreadCache();
   final endpoint = TextEditingController();
   final accessToken = TextEditingController();
   final input = TextEditingController();
@@ -1228,66 +1218,30 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   void _queueThreadCacheWrite() {
     final serverId = activeConnectionId;
     if (serverId == null) return;
-    String payload;
-    try {
-      payload = jsonEncode({'threads': threads, 'history': historyCache});
-    } catch (_) {
-      return;
-    }
     threadCacheWrite = threadCacheWrite.then((_) async {
       try {
-        final file = await _threadCacheFile(serverId);
-        await file.writeAsString(payload, flush: true);
+        await threadCache.write(serverId, threads, historyCache);
       } catch (_) {
         // Cache storage is optional; the live connection remains authoritative.
       }
     });
   }
 
-  Future<File> _threadCacheFile(String serverId) async {
-    final root = await getApplicationCacheDirectory();
-    final directory = Directory('${root.path}/$threadCacheDirectory');
-    await directory.create(recursive: true);
-    final name = base64Url.encode(utf8.encode(serverId)).replaceAll('=', '');
-    return File('${directory.path}/$name.json');
-  }
-
-  List<Map<String, dynamic>> _cachedMaps(dynamic value) => value is List
-      ? value
-            .whereType<Map>()
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList()
-      : [];
-
   Future<void> _restoreThreadCache(String serverId) async {
-    List<Map<String, dynamic>> cachedThreads = [];
-    final cachedHistories = <String, List<Map<String, dynamic>>>{};
+    var snapshot = const ThreadCacheSnapshot(threads: [], history: {});
     try {
-      final file = await _threadCacheFile(serverId);
-      if (await file.exists()) {
-        final value = jsonDecode(await file.readAsString());
-        if (value is Map) {
-          cachedThreads = _cachedMaps(value['threads']);
-          final rawHistory = value['history'];
-          if (rawHistory is Map) {
-            for (final entry in rawHistory.entries) {
-              final items = _cachedMaps(entry.value);
-              if (items.isNotEmpty) cachedHistories['${entry.key}'] = items;
-            }
-          }
-        }
-      }
+      snapshot = await threadCache.read(serverId);
     } catch (_) {
       // A stale or unavailable cache must not block a live connection.
     }
     if (!mounted || activeConnectionId != serverId) return;
     setState(() {
-      threads = cachedThreads;
-      historyCache = cachedHistories;
+      threads = snapshot.threads;
+      historyCache = snapshot.history;
       final id = selectedThread;
       history = id == null
           ? []
-          : cachedHistories[id]
+          : snapshot.history[id]
                     ?.map((item) => Map<String, dynamic>.from(item))
                     .toList() ??
                 [];
@@ -1296,25 +1250,10 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   Future<void> _restoreConnection() async {
     try {
-      final savedConnections = await secureStorage.read(key: connectionsKey);
-      final savedPermission = await secureStorage.read(key: permissionModeKey);
+      final savedConnections = await connectionStore.loadConnections();
+      final savedPermission = await connectionStore.loadPermissionMode();
       if (!mounted) return;
-      if (savedConnections != null && savedConnections.isNotEmpty) {
-        final value = jsonDecode(savedConnections);
-        if (value is List) {
-          connections = value
-              .whereType<Map>()
-              .map(
-                (item) => item.map((key, value) => MapEntry('$key', '$value')),
-              )
-              .where(
-                (item) =>
-                    item['endpoint']?.isNotEmpty == true &&
-                    item['token']?.isNotEmpty == true,
-              )
-              .toList();
-        }
-      }
+      connections = savedConnections;
       setState(() {
         if (connections.isNotEmpty) {
           final recent = connections.first;
@@ -1341,7 +1280,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   Future<void> setPermissionMode(RemotePermissionMode mode) async {
     setState(() => permissionMode = mode);
     try {
-      await secureStorage.write(key: permissionModeKey, value: mode.name);
+      await connectionStore.savePermissionMode(mode.name);
     } catch (_) {
       // Permission persistence is optional; the selected mode still applies.
     }
@@ -1349,10 +1288,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   Future<void> _saveConnection() async {
     try {
-      await secureStorage.write(
-        key: connectionsKey,
-        value: jsonEncode(connections),
-      );
+      await connectionStore.saveConnections(connections);
     } catch (_) {
       // A storage failure must not prevent an otherwise valid connection.
     }
