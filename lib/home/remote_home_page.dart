@@ -78,6 +78,14 @@ Timer startPeriodicRefresh({
   });
 }
 
+List<Map<String, String>> rememberRemoteConnection(
+  List<Map<String, String>> connections,
+  Map<String, String> record,
+) => [
+  record,
+  ...connections.where((item) => item['serverId'] != record['serverId']),
+];
+
 class _RemoteHomePageState extends State<RemoteHomePage> {
   static const connectionsKey = 'connections';
   static const permissionModeKey = 'permission_mode';
@@ -121,7 +129,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   @override
   void initState() {
     super.initState();
-    _restoreConnection();
+    unawaited(_restoreConnection());
   }
 
   @override
@@ -177,7 +185,12 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       if (mounted) {
         setState(() => connectionStatus = RemoteConnectionStatus.connecting);
       }
-      await _connectRecord(endpointValue, token, pairing: pairing);
+      try {
+        await _connectRecord(endpointValue, token, pairing: pairing);
+      } catch (_) {
+        await _disconnect();
+        rethrow;
+      }
     });
   }
 
@@ -200,15 +213,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       'endpoint': endpointValue,
       'token': token,
     };
-    final index = connections.indexWhere(
-      (item) => item['serverId'] == record['serverId'],
-    );
-    if (index == -1) {
-      connections = [record, ...connections];
-    } else {
-      connections = [...connections]
-        ..[index] = {...connections[index], ...record};
-    }
+    connections = rememberRemoteConnection(connections, record);
     activeConnectionId = record['serverId'];
     endpoint.text = endpointValue;
     accessToken.text = token;
@@ -1141,6 +1146,12 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           orElse: () => RemotePermissionMode.requestApproval,
         );
       });
+      if (connections.isNotEmpty) {
+        final recent = connections.first;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(_connectSaved(recent));
+        });
+      }
     } catch (_) {
       // Stored connection settings are optional; the user can enter them again.
     }

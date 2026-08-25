@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 
 import 'package:codex_remote/api.dart';
 import 'package:codex_remote/home/remote_home_page.dart'
-    show startPeriodicRefresh;
+    show rememberRemoteConnection, startPeriodicRefresh;
 import 'package:codex_remote/main.dart';
 
 void main() {
@@ -37,6 +37,19 @@ void main() {
     ]..sort(compareRemoteThreads);
 
     expect(threads.map((thread) => thread['id']), ['old-active', 'new-idle']);
+  });
+
+  test('remembers the last connected server first', () {
+    final connections = rememberRemoteConnection(
+      [
+        {'serverId': 'first', 'name': 'First'},
+        {'serverId': 'last', 'name': 'Old name'},
+      ],
+      {'serverId': 'last', 'name': 'Last'},
+    );
+
+    expect(connections.map((record) => record['serverId']), ['last', 'first']);
+    expect(connections.first['name'], 'Last');
   });
 
   test('finds the in-progress turn in a thread response', () {
