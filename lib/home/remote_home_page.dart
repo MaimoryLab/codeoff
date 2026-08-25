@@ -274,7 +274,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   }
 
   String get _defaultDeviceName => Platform.localHostname.trim().isEmpty
-      ? 'Mobile device'
+      ? context.t('mobileDevice')
       : Platform.localHostname;
 
   Map<String, dynamic> _serverFrom(dynamic value) {
