@@ -319,6 +319,7 @@ class RemoteApi {
       final value = jsonDecode('$data');
       if (value is! Map) return;
       if (value['method'] is String) {
+        _resetHeartbeatTimeout();
         final event = Map<String, dynamic>.from(value);
         if (event['params'] is! Map) event['params'] = <String, dynamic>{};
         _events.add(event);
@@ -334,6 +335,7 @@ class RemoteApi {
           }
           return;
         }
+        _resetHeartbeatTimeout();
         final completer = _pending.remove(id);
         if (completer == null) return;
         final error = value['error'];
@@ -374,8 +376,7 @@ class RemoteApi {
   void _sendHeartbeat(WebSocket socket) {
     if (!identical(_socket, socket)) return;
     if (_pending.isNotEmpty) {
-      _heartbeatRequests.clear();
-      _missedHeartbeatAcks = 0;
+      _resetHeartbeatTimeout();
       return;
     }
     if (_missedHeartbeatAcks >= 3) {
@@ -398,6 +399,11 @@ class RemoteApi {
   void _stopHeartbeat() {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
+    _heartbeatRequests.clear();
+    _missedHeartbeatAcks = 0;
+  }
+
+  void _resetHeartbeatTimeout() {
     _heartbeatRequests.clear();
     _missedHeartbeatAcks = 0;
   }
