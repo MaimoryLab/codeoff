@@ -1,0 +1,51 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:codex_remote/api.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  test('streams uploads over authenticated HTTP with progress', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final received = Completer<({List<int> data, String? authorization})>();
+    server.listen((request) async {
+      final data = await request.fold<List<int>>(
+        [],
+        (data, chunk) => data..addAll(chunk),
+      );
+      received.complete((
+        data: data,
+        authorization: request.headers.value(HttpHeaders.authorizationHeader),
+      ));
+      request.response
+        ..headers.contentType = ContentType.json
+        ..write(jsonEncode({'path': '/tmp/uploaded.txt'}));
+      await request.response.close();
+    });
+    addTearDown(() async {
+      await server.close(force: true);
+    });
+    final api = RemoteApi(
+      'http://${server.address.address}:${server.port}',
+      token: 'secret',
+    );
+    addTearDown(api.close);
+
+    final progress = <int>[];
+    final uploaded = await api.upload(
+      'upload.txt',
+      Stream<List<int>>.fromIterable([
+        [1, 2],
+        [3, 4, 5],
+      ]),
+      onProgress: progress.add,
+    );
+
+    expect(progress, [2, 5]);
+    final request = await received.future;
+    expect(request.data, [1, 2, 3, 4, 5]);
+    expect(request.authorization, 'Bearer secret');
+    expect(uploaded.path, '/tmp/uploaded.txt');
+  });
+}

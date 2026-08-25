@@ -191,7 +191,11 @@ extension _ThreadController on _RemoteHomePageState {
 
   void _setThreadName(Map<String, dynamic> thread, String name) {
     if (!mounted) return;
-    setState(() => thread['name'] = name);
+    setState(
+      () => threads = updateRemoteThread(threads, _threadId(thread), {
+        'name': name,
+      }),
+    );
     _queueThreadCacheWrite();
   }
 

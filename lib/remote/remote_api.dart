@@ -142,14 +142,12 @@ class RemoteApi {
     Stream<List<int>> bytes, {
     void Function(int bytesRead)? onProgress,
   }) async {
-    final data = <int>[];
-    await for (final chunk in bytes) {
-      data.addAll(chunk);
-      onProgress?.call(data.length);
-    }
-    final value = await _request(
-      'upload',
-      params: {'name': name, 'data': base64Encode(data)},
+    final value = await _httpRequest(
+      'POST',
+      '/api/v1/upload',
+      query: {'name': name},
+      stream: bytes,
+      onProgress: onProgress,
     ) as Map<String, dynamic>;
     return RemoteAttachment(name: name, path: '${value['path'] ?? ''}');
   }
@@ -244,12 +242,30 @@ class RemoteApi {
     String path, {
     Map<String, dynamic>? body,
     Map<String, String>? query,
+    Stream<List<int>>? stream,
+    void Function(int bytesRead)? onProgress,
   }) async {
     final client = HttpClient();
     try {
       final request = await client.openUrl(method, _uri(path, query));
-      request.headers.contentType = ContentType.json;
-      if (body != null) request.write(jsonEncode(body));
+      if (token?.isNotEmpty == true) {
+        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      }
+      request.headers.contentType = stream == null
+          ? ContentType.json
+          : ContentType.binary;
+      if (stream != null) {
+        var sent = 0;
+        await request.addStream(
+          stream.map((chunk) {
+            sent += chunk.length;
+            onProgress?.call(sent);
+            return chunk;
+          }),
+        );
+      } else if (body != null) {
+        request.write(jsonEncode(body));
+      }
       final response = await request.close();
       final text = await response.transform(utf8.decoder).join();
       if (response.statusCode < 200 || response.statusCode >= 300) {

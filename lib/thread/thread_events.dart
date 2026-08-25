@@ -20,11 +20,9 @@ extension _RemoteEvents on _RemoteHomePageState {
     final status = params['status'];
     if (method == 'thread/status/changed' && status is Map) {
       setState(() {
-        for (final thread in threads) {
-          if (_threadId(thread) == threadId) {
-            thread['status'] = Map<String, dynamic>.from(status);
-          }
-        }
+        threads = updateRemoteThread(threads, threadId, {
+          'status': Map<String, dynamic>.from(status),
+        });
         threads.sort(compareRemoteThreads);
       });
       _queueThreadCacheWrite();
@@ -33,11 +31,9 @@ extension _RemoteEvents on _RemoteHomePageState {
     if (method == 'thread/name/updated') {
       final name = '${params['threadName'] ?? params['name'] ?? ''}'.trim();
       if (name.isNotEmpty) {
-        setState(() {
-          for (final thread in threads) {
-            if (_threadId(thread) == threadId) thread['name'] = name;
-          }
-        });
+        setState(
+          () => threads = updateRemoteThread(threads, threadId, {'name': name}),
+        );
         _queueThreadCacheWrite();
         unawaited(_reloadThreads());
       }

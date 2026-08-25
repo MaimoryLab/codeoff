@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 
 import 'package:codex_remote/api.dart';
 import 'package:codex_remote/home/remote_home_page.dart'
-    show startPeriodicRefresh;
+    show startPeriodicRefresh, updateRemoteThread;
 import 'package:codex_remote/connection/pairing_payload.dart';
 import 'package:codex_remote/main.dart';
 import 'package:codex_remote/storage/connection_store.dart';
@@ -39,6 +39,20 @@ void main() {
     ]..sort(compareRemoteThreads);
 
     expect(threads.map((thread) => thread['id']), ['old-active', 'new-idle']);
+  });
+
+  test('updates an unmodifiable remote thread by replacement', () {
+    final original = Map<String, dynamic>.unmodifiable({'id': 'thread-1'});
+    final updated = updateRemoteThread(
+      [original],
+      'thread-1',
+      {
+        'status': {'type': 'active'},
+      },
+    );
+
+    expect(updated.single['status'], {'type': 'active'});
+    expect(original.containsKey('status'), false);
   });
 
   test('remembers the last connected server first', () {
@@ -254,37 +268,6 @@ void main() {
     expect(disconnected.isCompleted, false);
 
     await subscription.cancel();
-    await api.close();
-    await server.close(force: true);
-  });
-
-  test('reports upload progress for each byte chunk', () async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    server.listen((request) async {
-      final socket = await WebSocketTransformer.upgrade(request);
-      socket.listen((data) {
-        final value = jsonDecode('$data') as Map<String, dynamic>;
-        socket.add(
-          jsonEncode({
-            'id': value['id'],
-            'result': {'path': '/tmp/uploaded.txt'},
-          }),
-        );
-      });
-    });
-    final api = RemoteApi('http://${server.address.address}:${server.port}');
-    final progress = <int>[];
-    final uploaded = await api.upload(
-      'upload.txt',
-      Stream<List<int>>.fromIterable([
-        [1, 2],
-        [3, 4, 5],
-      ]),
-      onProgress: progress.add,
-    );
-
-    expect(progress, [2, 5]);
-    expect(uploaded.path, '/tmp/uploaded.txt');
     await api.close();
     await server.close(force: true);
   });

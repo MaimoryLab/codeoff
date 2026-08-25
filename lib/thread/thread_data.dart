@@ -22,6 +22,18 @@ bool remoteThreadIsActive(Map<String, dynamic> thread) {
   return status is Map && status['type'] == 'active';
 }
 
+List<Map<String, dynamic>> updateRemoteThread(
+  List<Map<String, dynamic>> threads,
+  String id,
+  Map<String, dynamic> changes,
+) => [
+  for (final thread in threads)
+    if ('${thread['id'] ?? thread['threadId'] ?? ''}' == id)
+      {...thread, ...changes}
+    else
+      thread,
+];
+
 DateTime remoteThreadDate(Map<String, dynamic> thread) {
   for (final key in ['updatedAt', 'lastUpdatedAt', 'createdAt', 'timestamp']) {
     final parsed = parseRemoteTimestamp(thread[key]);
