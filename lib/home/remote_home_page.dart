@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -60,7 +59,16 @@ class _DirectoryListing {
 }
 
 class RemoteHomePage extends StatefulWidget {
-  const RemoteHomePage({super.key});
+  const RemoteHomePage({
+    required this.connectionStore,
+    required this.remoteConnection,
+    required this.threadCache,
+    super.key,
+  });
+
+  final ConnectionStore connectionStore;
+  final RemoteConnection remoteConnection;
+  final ThreadCache threadCache;
 
   @override
   State<RemoteHomePage> createState() => _RemoteHomePageState();
@@ -88,13 +96,13 @@ Timer startPeriodicRefresh({
 
 class _RemoteHomePageState extends State<RemoteHomePage> {
   static const threadPageSize = 100;
-  final connectionStore = ConnectionStore(const FlutterSecureStorage());
-  final threadCache = ThreadCache();
   final endpoint = TextEditingController();
   final accessToken = TextEditingController();
   final input = TextEditingController();
   final search = TextEditingController();
-  final remoteConnection = RemoteConnection();
+  late final connectionStore = widget.connectionStore;
+  late final remoteConnection = widget.remoteConnection;
+  late final threadCache = widget.threadCache;
   late final StreamSubscription<RemoteConnectionStatus> statusSubscription;
   late final StreamSubscription<Map<String, dynamic>> eventSubscription;
   Timer? historyRefreshTimer;
@@ -146,7 +154,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     historyRefreshTimer?.cancel();
     statusSubscription.cancel();
     eventSubscription.cancel();
-    unawaited(remoteConnection.close());
     for (final controller in [endpoint, accessToken, input, search]) {
       controller.dispose();
     }

@@ -1,11 +1,32 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'home/remote_home_page.dart';
 import 'i18n.dart';
+import 'remote/remote_connection.dart';
+import 'storage/connection_store.dart';
+import 'storage/thread_cache.dart';
 
-class CodexRemoteApp extends StatelessWidget {
+class CodexRemoteApp extends StatefulWidget {
   const CodexRemoteApp({super.key});
+
+  @override
+  State<CodexRemoteApp> createState() => _CodexRemoteAppState();
+}
+
+class _CodexRemoteAppState extends State<CodexRemoteApp> {
+  final connectionStore = ConnectionStore(const FlutterSecureStorage());
+  final remoteConnection = RemoteConnection();
+  final threadCache = ThreadCache();
+
+  @override
+  void dispose() {
+    unawaited(remoteConnection.close());
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +72,11 @@ class CodexRemoteApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const RemoteHomePage(),
+      home: RemoteHomePage(
+        connectionStore: connectionStore,
+        remoteConnection: remoteConnection,
+        threadCache: threadCache,
+      ),
     );
   }
 }
