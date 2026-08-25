@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../i18n.dart';
+import '../remote/remote_connection.dart';
 import '../storage/connection_store.dart';
 import '../storage/thread_cache.dart';
 import 'pairing_payload.dart';
@@ -65,8 +66,6 @@ class RemoteHomePage extends StatefulWidget {
   State<RemoteHomePage> createState() => _RemoteHomePageState();
 }
 
-enum RemoteConnectionStatus { offline, connecting, reconnecting, online }
-
 Timer startPeriodicRefresh({
   required Duration interval,
   required bool Function() active,
@@ -95,10 +94,10 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   final accessToken = TextEditingController();
   final input = TextEditingController();
   final search = TextEditingController();
-  RemoteApi? api;
-  StreamSubscription<Map<String, dynamic>>? eventSubscription;
+  final remoteConnection = RemoteConnection();
+  late final StreamSubscription<RemoteConnectionStatus> statusSubscription;
+  late final StreamSubscription<Map<String, dynamic>> eventSubscription;
   Timer? historyRefreshTimer;
-  Future<void>? connectionRecovery;
   Future<void>? threadReload;
   Future<void> threadCacheWrite = Future.value();
   List<Map<String, dynamic>> threads = [];
@@ -114,7 +113,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   bool projectsView = false;
   String message = 'Enter the desktop endpoint to begin.';
   bool busy = false;
-  RemoteConnectionStatus connectionStatus = RemoteConnectionStatus.offline;
   String? activeConnectionId;
   bool settingsOpen = true;
   bool loadingHistory = false;
@@ -129,15 +127,17 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   List<PlatformFile> attachments = [];
   RemotePermissionMode permissionMode = RemotePermissionMode.requestApproval;
 
+  RemoteApi? get api => remoteConnection.client;
+  RemoteConnectionStatus get connectionStatus => remoteConnection.status;
   bool get connected => connectionStatus == RemoteConnectionStatus.online;
-
-  void _showConnectionStatus(RemoteConnectionStatus status) {
-    if (mounted) setState(() => connectionStatus = status);
-  }
 
   @override
   void initState() {
     super.initState();
+    statusSubscription = remoteConnection.statuses.listen(
+      _handleConnectionStatus,
+    );
+    eventSubscription = remoteConnection.events.listen(_handleRemoteEvent);
     unawaited(_restoreConnection());
   }
 
@@ -145,8 +145,9 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   void dispose() {
     _releaseSelectedThread();
     historyRefreshTimer?.cancel();
-    eventSubscription?.cancel();
-    unawaited(api?.close());
+    statusSubscription.cancel();
+    eventSubscription.cancel();
+    unawaited(remoteConnection.close());
     for (final controller in [endpoint, accessToken, input, search]) {
       controller.dispose();
     }
@@ -167,14 +168,13 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         final client = api;
         setState(() {
           if (disconnected && client == null) {
-            connectionStatus = RemoteConnectionStatus.offline;
             message = context.t('disconnected', {'error': '$error'});
           } else if (!disconnected) {
             message = error.toString();
           }
         });
         if (disconnected && client != null) {
-          unawaited(_startReconnect(client));
+          unawaited(reconnect());
         }
         if (!disconnected) {
           ScaffoldMessenger.maybeOf(context)

@@ -101,7 +101,6 @@ extension _PairingScanner on _RemoteHomePageState {
       throw _PairingFailure(noReachableAddress);
     }
     await _disconnect();
-    _showConnectionStatus(RemoteConnectionStatus.connecting);
     try {
       await _connectRecord(candidate, token);
     } catch (error) {

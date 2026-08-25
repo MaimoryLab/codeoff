@@ -31,9 +31,6 @@ extension _ConnectionController on _RemoteHomePageState {
         pairing = _serverFrom(value);
       }
       await _disconnect();
-      if (mounted) {
-        setState(() => connectionStatus = RemoteConnectionStatus.connecting);
-      }
       try {
         await _connectRecord(endpointValue, token, pairing: pairing);
       } catch (_) {
@@ -48,9 +45,7 @@ extension _ConnectionController on _RemoteHomePageState {
     String token, {
     Map<String, dynamic>? pairing,
   }) async {
-    final client = RemoteApi(endpointValue, token: token);
-    api = client;
-    final status = await client.status();
+    final status = await remoteConnection.connect(endpointValue, token);
     final server = _serverFrom(status);
     final serverId = '${server['id'] ?? pairing?['id'] ?? endpointValue}';
     final previous = connections.where((item) => item['serverId'] == serverId);
@@ -68,8 +63,6 @@ extension _ConnectionController on _RemoteHomePageState {
     accessToken.text = token;
     await _saveConnection();
     await _restoreThreadCache(serverId);
-    _listenEvents(client);
-    connectionStatus = RemoteConnectionStatus.online;
     await _reloadThreads();
     if (!mounted) return;
     setState(() {
@@ -139,62 +132,41 @@ extension _ConnectionController on _RemoteHomePageState {
     return {};
   }
 
+  void _handleConnectionStatus(RemoteConnectionStatus status) {
+    if (!mounted) return;
+    setState(() {
+      switch (status) {
+        case RemoteConnectionStatus.reconnecting:
+          message = context.t('connectionLost');
+        case RemoteConnectionStatus.online:
+          message = context.t('connected');
+        case RemoteConnectionStatus.offline:
+          final error = remoteConnection.lastError;
+          if (error != null) {
+            message = context.t('disconnected', {'error': '$error'});
+          }
+        case RemoteConnectionStatus.connecting:
+          break;
+      }
+    });
+    if (status == RemoteConnectionStatus.online &&
+        remoteConnection.previousStatus ==
+            RemoteConnectionStatus.reconnecting) {
+      unawaited(_reloadThreads());
+    }
+  }
+
   Future<void> _disconnect() async {
     _releaseSelectedThread();
-    connectionRecovery = null;
-    await eventSubscription?.cancel();
-    eventSubscription = null;
-    await api?.close();
-    api = null;
-    connectionStatus = RemoteConnectionStatus.offline;
+    await remoteConnection.disconnect();
     activeConnectionId = null;
   }
 
   Future<void> reconnect() async {
-    var client = api;
-    if (client == null) {
-      final endpointValue = endpoint.text.trim();
-      final token = accessToken.text.trim();
-      if (endpointValue.isEmpty || token.isEmpty) return;
-      client = RemoteApi(endpointValue, token: token);
-      api = client;
-    }
-    await _startReconnect(client);
-  }
-
-  Future<void> _startReconnect(RemoteApi client) {
-    final current = connectionRecovery;
-    if (current != null) return current;
-    final future = _recoverConnection(client);
-    connectionRecovery = future;
-    return future.whenComplete(() {
-      if (identical(connectionRecovery, future)) connectionRecovery = null;
-    });
-  }
-
-  Future<void> _recoverConnection(RemoteApi client) async {
-    if (!mounted || !identical(api, client)) return;
-    setState(() {
-      connectionStatus = RemoteConnectionStatus.reconnecting;
-      message = context.t('connectionLost');
-    });
-    try {
-      await client.reconnect();
-      await client.status();
-      if (!mounted || !identical(api, client)) return;
-      if (eventSubscription == null) _listenEvents(client);
-      setState(() {
-        connectionStatus = RemoteConnectionStatus.online;
-        message = context.t('connected');
-      });
-      await _reloadThreads();
-    } catch (error) {
-      if (!mounted || !identical(api, client)) return;
-      setState(() {
-        connectionStatus = RemoteConnectionStatus.offline;
-        message = context.t('disconnected', {'error': '$error'});
-      });
-    }
+    final endpointValue = endpoint.text.trim();
+    final token = accessToken.text.trim();
+    if (endpointValue.isEmpty || token.isEmpty) return;
+    await remoteConnection.reconnect(endpoint: endpointValue, token: token);
   }
 
   Future<void> _connectSaved(Map<String, String> record) async {
