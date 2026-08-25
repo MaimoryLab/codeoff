@@ -61,6 +61,7 @@ class RemoteApi {
   Future<void>? _connecting;
   int _nextRequestId = 0;
   int _missedHeartbeatAcks = 0;
+  bool _closed = false;
 
   Future<dynamic> pair(String pairingToken, String name) => _httpRequest(
     'POST',
@@ -74,7 +75,7 @@ class RemoteApi {
     'thread/list',
     params: {
       if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
-      if (limit != null) 'limit': limit,
+      'limit': ?limit,
     },
   );
 
@@ -175,6 +176,7 @@ class RemoteApi {
   }
 
   Future<void> close() async {
+    _closed = true;
     final socket = _socket;
     _socket = null;
     _stopHeartbeat();
@@ -182,6 +184,25 @@ class RemoteApi {
     _socketSubscription = null;
     if (socket != null) await socket.close(WebSocketStatus.normalClosure);
     _failPending(ApiException('Connection closed'));
+  }
+
+  Future<void> reconnect({
+    int attempts = 3,
+    Duration retryDelay = const Duration(seconds: 1),
+  }) async {
+    ApiException? lastError;
+    for (var attempt = 0; attempt < attempts; attempt++) {
+      if (attempt > 0) await Future<void>.delayed(retryDelay * attempt);
+      try {
+        await _ensureConnected();
+        return;
+      } catch (error) {
+        lastError = error is ApiException
+            ? error
+            : ApiException(error.toString());
+      }
+    }
+    throw lastError ?? ApiException('Unable to reconnect');
   }
 
   Uri _uri(String path, [Map<String, String>? query]) {
@@ -244,6 +265,8 @@ class RemoteApi {
   }
 
   Future<void> _ensureConnected() {
+    if (_closed) return Future.error(ApiException('Connection closed'));
+    if (_socket != null) return Future.value();
     final existing = _connecting;
     if (existing != null) return existing;
     final future = () async {
@@ -255,7 +278,11 @@ class RemoteApi {
         final socket = await WebSocket.connect(
           _webSocketUri.toString(),
           headers: headers,
-        );
+        ).timeout(const Duration(seconds: 10));
+        if (_closed) {
+          await socket.close(WebSocketStatus.normalClosure);
+          throw ApiException('Connection closed');
+        }
         _socket = socket;
         _socketSubscription = socket.listen(
           (data) => _receive(socket, data),

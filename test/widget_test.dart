@@ -123,6 +123,26 @@ void main() {
     await server.close(force: true);
   });
 
+  test('reconnect makes exactly three attempts', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    var attempts = 0;
+    server.listen((request) async {
+      attempts++;
+      request.response.statusCode = HttpStatus.serviceUnavailable;
+      await request.response.close();
+    });
+    final api = RemoteApi('http://${server.address.address}:${server.port}');
+
+    await expectLater(
+      api.reconnect(retryDelay: Duration.zero),
+      throwsA(isA<ApiException>()),
+    );
+    expect(attempts, 3);
+
+    await api.close();
+    await server.close(force: true);
+  });
+
   test('maps permission modes to Codex turn policies', () {
     expect(RemotePermissionMode.requestApproval.approvalPolicy, 'on-request');
     expect(RemotePermissionMode.requestApproval.approvalsReviewer, 'user');
