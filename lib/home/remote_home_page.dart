@@ -7,6 +7,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
@@ -92,6 +93,7 @@ List<Map<String, String>> rememberRemoteConnection(
 class _RemoteHomePageState extends State<RemoteHomePage> {
   static const connectionsKey = 'connections';
   static const permissionModeKey = 'permission_mode';
+  static const threadCacheDirectory = 'codex_remote_threads';
   static const secureStorage = FlutterSecureStorage();
   static const threadPageSize = 100;
   final endpoint = TextEditingController();
@@ -103,7 +105,9 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   Timer? historyRefreshTimer;
   Future<void>? connectionRecovery;
   Future<void>? threadReload;
+  Future<void> threadCacheWrite = Future.value();
   List<Map<String, dynamic>> threads = [];
+  Map<String, List<Map<String, dynamic>>> historyCache = {};
   List<Map<String, dynamic>> approvals = [];
   List<Map<String, String>> connections = [];
   List<Map<String, dynamic>> history = [];
@@ -228,6 +232,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     endpoint.text = endpointValue;
     accessToken.text = token;
     await _saveConnection();
+    await _restoreThreadCache(serverId);
     _listenEvents(client);
     connectionStatus = RemoteConnectionStatus.online;
     await _reloadThreads();
@@ -303,7 +308,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     eventSubscription?.cancel();
     eventSubscription = client.events().listen(
       (event) {
-        if (!mounted) return;
+        if (!mounted || !identical(api, client)) return;
         final id = event['id'];
         final method = '${event['method'] ?? ''}';
         if (id is int && method.contains('Approval')) {
@@ -326,6 +331,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             }
             threads.sort(compareRemoteThreads);
           });
+          _queueThreadCacheWrite();
           unawaited(_reloadThreads());
         }
         if (method == 'thread/name/updated') {
@@ -336,13 +342,16 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
                 if (_threadId(thread) == threadId) thread['name'] = name;
               }
             });
+            _queueThreadCacheWrite();
             unawaited(_reloadThreads());
           }
         }
         if (method == 'thread/archived') {
           setState(() {
             threads.removeWhere((thread) => _threadId(thread) == threadId);
+            historyCache.remove(threadId);
           });
+          _queueThreadCacheWrite();
           if (selectedThread == threadId) _showThreads();
           unawaited(_reloadThreads());
         }
@@ -453,12 +462,13 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           .where((thread) => seen.add(_threadId(thread)))
           .toList();
       next.sort(compareRemoteThreads);
-      if (!mounted) return;
+      if (!mounted || !identical(api, client)) return;
       final historyThread = selectedThread;
       setState(() {
         threads = next;
         // A newly-created thread can be absent from list results briefly.
       });
+      _queueThreadCacheWrite();
       if (historyThread != null) await _loadHistory(historyThread, force: true);
       if (pendingReleases.isNotEmpty) {
         await _releaseThread(pendingReleases.first);
@@ -584,6 +594,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   void _setThreadName(Map<String, dynamic> thread, String name) {
     if (!mounted) return;
     setState(() => thread['name'] = name);
+    _queueThreadCacheWrite();
   }
 
   Future<void> sendTurn() async {
@@ -665,6 +676,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         if (responseTurnId.isNotEmpty) activeTurnId = responseTurnId;
         message = active ? context.t('messageSent') : context.t('turnStarted');
       });
+      _cacheCurrentHistory();
     });
   }
 
@@ -685,6 +697,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       item['text'] = '${item['text'] ?? ''}$delta';
       history = [...history]..[index] = item;
     });
+    _cacheCurrentHistory();
   }
 
   Future<void> answer(Map<String, dynamic> event, String decision) async {
@@ -699,14 +712,17 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   }
 
   Future<void> _loadHistory(String? id, {bool force = false}) async {
-    if (id == null || api == null || (!force && loadedHistoryFor == id)) return;
+    final client = api;
+    if (id == null || client == null || (!force && loadedHistoryFor == id)) {
+      return;
+    }
     setState(() {
       loadingHistory = true;
       if (!force) history = [];
     });
     try {
-      final value = await api!.thread(id);
-      if (!mounted || selectedThread != id) return;
+      final value = await client.thread(id);
+      if (!mounted || selectedThread != id || !identical(api, client)) return;
       final snapshotSummary = processingSummaryFromThread(
         value,
         AppLocalizations.of(context),
@@ -725,6 +741,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         }
         loadedHistoryFor = id;
       });
+      _cacheCurrentHistory();
     } catch (error) {
       if (mounted) setState(() => message = error.toString());
     } finally {
@@ -744,12 +761,16 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       activeTurnId = '';
       processingSummary = '';
       processingItemId = '';
-      history = [];
+      history =
+          historyCache[id]
+              ?.map((item) => Map<String, dynamic>.from(item))
+              .toList() ??
+          [];
       threadClaiming = !owned;
       threadOwned = owned;
       threadConflict = false;
     });
-    _loadHistory(id);
+    _loadHistory(id, force: true);
     if (!owned) _claimThread(id);
   }
 
@@ -1190,6 +1211,88 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       ],
     ),
   );
+
+  void _cacheCurrentHistory() {
+    final id = selectedThread;
+    if (id == null) return;
+    if (history.isEmpty) {
+      historyCache.remove(id);
+    } else {
+      historyCache[id] = history
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+    }
+    _queueThreadCacheWrite();
+  }
+
+  void _queueThreadCacheWrite() {
+    final serverId = activeConnectionId;
+    if (serverId == null) return;
+    String payload;
+    try {
+      payload = jsonEncode({'threads': threads, 'history': historyCache});
+    } catch (_) {
+      return;
+    }
+    threadCacheWrite = threadCacheWrite.then((_) async {
+      try {
+        final file = await _threadCacheFile(serverId);
+        await file.writeAsString(payload, flush: true);
+      } catch (_) {
+        // Cache storage is optional; the live connection remains authoritative.
+      }
+    });
+  }
+
+  Future<File> _threadCacheFile(String serverId) async {
+    final root = await getApplicationCacheDirectory();
+    final directory = Directory('${root.path}/$threadCacheDirectory');
+    await directory.create(recursive: true);
+    final name = base64Url.encode(utf8.encode(serverId)).replaceAll('=', '');
+    return File('${directory.path}/$name.json');
+  }
+
+  List<Map<String, dynamic>> _cachedMaps(dynamic value) => value is List
+      ? value
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList()
+      : [];
+
+  Future<void> _restoreThreadCache(String serverId) async {
+    List<Map<String, dynamic>> cachedThreads = [];
+    final cachedHistories = <String, List<Map<String, dynamic>>>{};
+    try {
+      final file = await _threadCacheFile(serverId);
+      if (await file.exists()) {
+        final value = jsonDecode(await file.readAsString());
+        if (value is Map) {
+          cachedThreads = _cachedMaps(value['threads']);
+          final rawHistory = value['history'];
+          if (rawHistory is Map) {
+            for (final entry in rawHistory.entries) {
+              final items = _cachedMaps(entry.value);
+              if (items.isNotEmpty) cachedHistories['${entry.key}'] = items;
+            }
+          }
+        }
+      }
+    } catch (_) {
+      // A stale or unavailable cache must not block a live connection.
+    }
+    if (!mounted || activeConnectionId != serverId) return;
+    setState(() {
+      threads = cachedThreads;
+      historyCache = cachedHistories;
+      final id = selectedThread;
+      history = id == null
+          ? []
+          : cachedHistories[id]
+                    ?.map((item) => Map<String, dynamic>.from(item))
+                    .toList() ??
+                [];
+    });
+  }
 
   Future<void> _restoreConnection() async {
     try {
