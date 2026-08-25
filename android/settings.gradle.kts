@@ -11,24 +11,11 @@ pluginManagement {
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
 
     repositories {
-        maven { url 'https://maven.aliyun.com/repository/google' }
-        maven { url 'https://aliyun.com' }
         google()
         mavenCentral()
         gradlePluginPortal()
     }
 }
-
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-    repositories {
-        maven { url 'https://maven.aliyun.com/repository/google' }
-        maven { url 'https://aliyun.com' }
-        google()
-        mavenCentral()
-    }
-}
-
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"

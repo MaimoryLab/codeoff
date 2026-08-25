@@ -1,21 +1,9 @@
-buildscript {
-    repositories {
-        maven { url 'https://maven.aliyun.com/repository/google' }
-        maven { url 'https://aliyun.com' }
-        google()
-        mavenCentral()
-    }
-}
-
 allprojects {
     repositories {
-        maven { url 'https://maven.aliyun.com/repository/google' }
-        maven { url 'https://aliyun.com' }
         google()
         mavenCentral()
     }
 }
-
 
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory
