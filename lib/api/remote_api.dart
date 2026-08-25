@@ -43,17 +43,24 @@ enum RemotePermissionMode {
 }
 
 class RemoteApi {
-  RemoteApi(String endpoint, {this.token})
-    : base = Uri.parse(endpoint.trim().replaceFirst(RegExp(r'/+$'), ''));
+  RemoteApi(
+    String endpoint, {
+    this.token,
+    this.heartbeatInterval = const Duration(seconds: 10),
+  }) : base = Uri.parse(endpoint.trim().replaceFirst(RegExp(r'/+$'), ''));
 
   final Uri base;
   String? token;
+  final Duration heartbeatInterval;
   final _events = StreamController<Map<String, dynamic>>.broadcast();
   final _pending = <int, Completer<dynamic>>{};
+  final _heartbeatRequests = <int>{};
   WebSocket? _socket;
   StreamSubscription<dynamic>? _socketSubscription;
+  Timer? _heartbeatTimer;
   Future<void>? _connecting;
   int _nextRequestId = 0;
+  int _missedHeartbeatAcks = 0;
 
   Future<dynamic> pair(String pairingToken, String name) => _httpRequest(
     'POST',
@@ -170,6 +177,7 @@ class RemoteApi {
   Future<void> close() async {
     final socket = _socket;
     _socket = null;
+    _stopHeartbeat();
     await _socketSubscription?.cancel();
     _socketSubscription = null;
     if (socket != null) await socket.close(WebSocketStatus.normalClosure);
@@ -248,7 +256,6 @@ class RemoteApi {
           _webSocketUri.toString(),
           headers: headers,
         );
-        socket.pingInterval = const Duration(seconds: 20);
         _socket = socket;
         _socketSubscription = socket.listen(
           (data) => _receive(socket, data),
@@ -256,6 +263,10 @@ class RemoteApi {
           onDone: () =>
               _failConnection(socket, ApiException('WebSocket closed')),
           cancelOnError: false,
+        );
+        _heartbeatTimer = Timer.periodic(
+          heartbeatInterval,
+          (_) => _sendHeartbeat(socket),
         );
       } on ApiException {
         rethrow;
@@ -288,6 +299,14 @@ class RemoteApi {
       }
       final id = value['id'];
       if (id is int) {
+        if (_heartbeatRequests.remove(id)) {
+          final result = value['result'];
+          if (result is Map && result['ack'] == true) {
+            _missedHeartbeatAcks = 0;
+            _heartbeatRequests.clear();
+          }
+          return;
+        }
         final completer = _pending.remove(id);
         if (completer == null) return;
         final error = value['error'];
@@ -313,11 +332,42 @@ class RemoteApi {
   void _failConnection(WebSocket socket, Object error) {
     if (!identical(_socket, socket)) return;
     _socket = null;
+    _stopHeartbeat();
+    final subscription = _socketSubscription;
+    _socketSubscription = null;
+    unawaited(subscription?.cancel());
+    unawaited(socket.close(WebSocketStatus.goingAway));
     final failure = error is ApiException
         ? error
         : ApiException(error.toString());
     _failPending(failure);
     _events.addError(failure);
+  }
+
+  void _sendHeartbeat(WebSocket socket) {
+    if (!identical(_socket, socket)) return;
+    if (_missedHeartbeatAcks >= 3) {
+      _failConnection(
+        socket,
+        ApiException('Heartbeat acknowledgement timed out'),
+      );
+      return;
+    }
+    final id = ++_nextRequestId;
+    _heartbeatRequests.add(id);
+    _missedHeartbeatAcks++;
+    try {
+      socket.add(jsonEncode({'id': id, 'method': 'heartbeat'}));
+    } catch (error) {
+      _failConnection(socket, error);
+    }
+  }
+
+  void _stopHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    _heartbeatRequests.clear();
+    _missedHeartbeatAcks = 0;
   }
 
   void _failPending(ApiException error) {

@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:codex_remote/api.dart';
@@ -88,6 +92,35 @@ void main() {
     expect(conflict.isConnectionFailure, false);
     expect(conflict.isConflict, true);
     expect(ApiException('offline').isConnectionFailure, true);
+  });
+
+  test('disconnects after three unanswered heartbeats', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    var heartbeats = 0;
+    server.listen((request) async {
+      final socket = await WebSocketTransformer.upgrade(request);
+      socket.listen((data) {
+        final message = jsonDecode('$data');
+        if (message is Map && message['method'] == 'heartbeat') heartbeats++;
+      });
+    });
+    final api = RemoteApi(
+      'http://${server.address.address}:${server.port}',
+      heartbeatInterval: const Duration(milliseconds: 20),
+    );
+    final disconnected = Completer<Object>();
+    final subscription = api.events().listen(
+      (_) {},
+      onError: (Object error) => disconnected.complete(error),
+    );
+
+    final error = await disconnected.future.timeout(const Duration(seconds: 2));
+    expect(error.toString(), contains('Heartbeat acknowledgement timed out'));
+    expect(heartbeats, 3);
+
+    await subscription.cancel();
+    await api.close();
+    await server.close(force: true);
   });
 
   test('maps permission modes to Codex turn policies', () {
