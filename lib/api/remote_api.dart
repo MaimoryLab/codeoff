@@ -373,6 +373,11 @@ class RemoteApi {
 
   void _sendHeartbeat(WebSocket socket) {
     if (!identical(_socket, socket)) return;
+    if (_pending.isNotEmpty) {
+      _heartbeatRequests.clear();
+      _missedHeartbeatAcks = 0;
+      return;
+    }
     if (_missedHeartbeatAcks >= 3) {
       _failConnection(
         socket,

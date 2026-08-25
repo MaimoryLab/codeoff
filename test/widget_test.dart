@@ -201,6 +201,34 @@ void main() {
     await server.close(force: true);
   });
 
+  test('does not expire heartbeat while a request is pending', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final connected = Completer<void>();
+    server.listen((request) async {
+      final socket = await WebSocketTransformer.upgrade(request);
+      connected.complete();
+      socket.listen((_) {});
+    });
+    final api = RemoteApi(
+      'http://${server.address.address}:${server.port}',
+      heartbeatInterval: const Duration(milliseconds: 20),
+    );
+    final disconnected = Completer<Object>();
+    final subscription = api.events().listen(
+      (_) {},
+      onError: (Object error) => disconnected.complete(error),
+    );
+    await connected.future;
+    final pending = api.status();
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(disconnected.isCompleted, false);
+
+    await subscription.cancel();
+    await api.close();
+    await expectLater(pending, throwsA(isA<ApiException>()));
+    await server.close(force: true);
+  });
+
   test('reconnect makes exactly three attempts', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     var attempts = 0;
