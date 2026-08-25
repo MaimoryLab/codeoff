@@ -81,6 +81,7 @@ extension _ThreadController on _RemoteHomePageState {
       if (cwd == null) return;
       final value = await api!.startThread(cwd: cwd);
       final id = _idFromValue(value);
+      if (mounted) setState(() => message = context.t('openingThread'));
       await _reloadThreads();
       if (id.isNotEmpty) _openThread(id, owned: true);
     });

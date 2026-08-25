@@ -11,7 +11,16 @@ extension _ThreadMessages on _RemoteHomePageState {
         history.isEmpty &&
         processingSummary.isEmpty &&
         pendingApprovals.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 12),
+            Text(context.t('loadingThread')),
+          ],
+        ),
+      );
     }
     if (history.isEmpty &&
         processingSummary.isEmpty &&

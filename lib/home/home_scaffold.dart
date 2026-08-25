@@ -63,6 +63,7 @@ extension _HomeScaffold on _RemoteHomePageState {
         ),
         body: Column(
           children: [
+            if (busy) _operationBanner(),
             if (!connected) _connectionBanner(),
             Expanded(child: content),
           ],
@@ -119,6 +120,28 @@ extension _HomeScaffold on _RemoteHomePageState {
       ),
     );
   }
+
+  Widget _operationBanner() => Material(
+    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+    child: SafeArea(
+      top: false,
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
+          ],
+        ),
+      ),
+    ),
+  );
 
   Widget _drawer(BuildContext context) => Drawer(
     backgroundColor: const Color(0xff222326),
