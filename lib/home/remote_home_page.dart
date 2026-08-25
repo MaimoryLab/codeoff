@@ -17,6 +17,7 @@ import 'pairing_payload.dart';
 part 'thread_data.dart';
 part 'settings_view.dart';
 part 'thread_view.dart';
+part 'thread_messages.dart';
 part 'home_scaffold.dart';
 part 'pairing_scanner.dart';
 part 'connection_controller.dart';
