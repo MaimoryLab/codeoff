@@ -55,6 +55,8 @@ class RemoteHomePage extends StatefulWidget {
   State<RemoteHomePage> createState() => _RemoteHomePageState();
 }
 
+enum RemoteConnectionStatus { offline, connecting, reconnecting, online }
+
 class _RemoteHomePageState extends State<RemoteHomePage> {
   static const connectionsKey = 'connections';
   static const permissionModeKey = 'permission_mode';
@@ -66,6 +68,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   final search = TextEditingController();
   RemoteApi? api;
   StreamSubscription<Map<String, dynamic>>? eventSubscription;
+  Future<void>? connectionRecovery;
   Future<void>? threadReload;
   List<Map<String, dynamic>> threads = [];
   List<Map<String, dynamic>> approvals = [];
@@ -79,7 +82,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   bool projectsView = false;
   String message = 'Enter the desktop endpoint to begin.';
   bool busy = false;
-  bool connected = false;
+  RemoteConnectionStatus connectionStatus = RemoteConnectionStatus.offline;
   String? activeConnectionId;
   bool settingsOpen = true;
   bool loadingHistory = false;
@@ -91,6 +94,8 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   List<PlatformFile> attachments = [];
   RemotePermissionMode permissionMode = RemotePermissionMode.requestApproval;
 
+  bool get connected => connectionStatus == RemoteConnectionStatus.online;
+
   @override
   void initState() {
     super.initState();
@@ -101,6 +106,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   void dispose() {
     _releaseSelectedThread();
     eventSubscription?.cancel();
+    unawaited(api?.close());
     for (final controller in [endpoint, accessToken, input, search]) {
       controller.dispose();
     }
@@ -144,6 +150,10 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         token = _stringValue(value, 'token');
         pairing = _serverFrom(value);
       }
+      await _disconnect();
+      if (mounted) {
+        setState(() => connectionStatus = RemoteConnectionStatus.connecting);
+      }
       await _connectRecord(endpointValue, token, pairing: pairing);
     });
   }
@@ -153,8 +163,8 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     String token, {
     Map<String, dynamic>? pairing,
   }) async {
-    await _disconnect();
     final client = RemoteApi(endpointValue, token: token);
+    api = client;
     final status = await client.status();
     final server = _serverFrom(status);
     final serverId = '${server['id'] ?? pairing?['id'] ?? endpointValue}';
@@ -180,10 +190,9 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     endpoint.text = endpointValue;
     accessToken.text = token;
     await _saveConnection();
-    api = client;
-    connected = true;
-    await _reloadThreads();
     _listenEvents(client);
+    connectionStatus = RemoteConnectionStatus.online;
+    await _reloadThreads();
     settingsOpen = false;
     message = 'Connected';
     _toast('Connected to ${record['name']}');
@@ -347,7 +356,9 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         }
       },
       onError: (Object error) {
-        if (mounted) setState(() => message = error.toString());
+        if (mounted && identical(api, client)) {
+          unawaited(_startReconnect(client));
+        }
       },
     );
   }
@@ -837,15 +848,22 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     } catch (error) {
       if (mounted) {
         final disconnected = error is ApiException && error.isConnectionFailure;
+        final client = api;
         setState(() {
-          message = error.toString();
-          if (disconnected) {
-            connected = false;
-            activeConnectionId = null;
+          if (disconnected && client == null) {
+            connectionStatus = RemoteConnectionStatus.offline;
+            message = 'Disconnected: $error';
+          } else if (!disconnected) {
+            message = error.toString();
           }
         });
-        ScaffoldMessenger.maybeOf(context)
-            ?.showSnackBar(SnackBar(content: Text(error.toString())));
+        if (disconnected && client != null) {
+          unawaited(_startReconnect(client));
+        }
+        if (!disconnected) {
+          ScaffoldMessenger.maybeOf(context)
+              ?.showSnackBar(SnackBar(content: Text(error.toString())));
+        }
       }
     } finally {
       if (mounted) setState(() => busy = false);
@@ -861,12 +879,60 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   Future<void> _disconnect() async {
     _releaseSelectedThread();
+    connectionRecovery = null;
     await eventSubscription?.cancel();
     eventSubscription = null;
     await api?.close();
     api = null;
-    connected = false;
+    connectionStatus = RemoteConnectionStatus.offline;
     activeConnectionId = null;
+  }
+
+  Future<void> reconnect() async {
+    var client = api;
+    if (client == null) {
+      final endpointValue = endpoint.text.trim();
+      final token = accessToken.text.trim();
+      if (endpointValue.isEmpty || token.isEmpty) return;
+      client = RemoteApi(endpointValue, token: token);
+      api = client;
+    }
+    await _startReconnect(client);
+  }
+
+  Future<void> _startReconnect(RemoteApi client) {
+    final current = connectionRecovery;
+    if (current != null) return current;
+    final future = _recoverConnection(client);
+    connectionRecovery = future;
+    return future.whenComplete(() {
+      if (identical(connectionRecovery, future)) connectionRecovery = null;
+    });
+  }
+
+  Future<void> _recoverConnection(RemoteApi client) async {
+    if (!mounted || !identical(api, client)) return;
+    setState(() {
+      connectionStatus = RemoteConnectionStatus.reconnecting;
+      message = 'Connection lost. Reconnecting...';
+    });
+    try {
+      await client.reconnect();
+      await client.status();
+      if (!mounted || !identical(api, client)) return;
+      if (eventSubscription == null) _listenEvents(client);
+      setState(() {
+        connectionStatus = RemoteConnectionStatus.online;
+        message = 'Connected';
+      });
+      await _reloadThreads();
+    } catch (error) {
+      if (!mounted || !identical(api, client)) return;
+      setState(() {
+        connectionStatus = RemoteConnectionStatus.offline;
+        message = 'Disconnected: $error';
+      });
+    }
   }
 
   Future<void> _connectSaved(Map<String, String> record) async {
@@ -1005,6 +1071,12 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         }
       }
       setState(() {
+        if (connections.isNotEmpty) {
+          final recent = connections.first;
+          activeConnectionId = recent['serverId'];
+          endpoint.text = recent['endpoint'] ?? '';
+          accessToken.text = recent['token'] ?? '';
+        }
         permissionMode = RemotePermissionMode.values.firstWhere(
           (mode) => mode.name == savedPermission,
           orElse: () => RemotePermissionMode.requestApproval,

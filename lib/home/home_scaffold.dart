@@ -3,6 +3,16 @@ part of 'remote_home_page.dart';
 extension _HomeScaffold on _RemoteHomePageState {
   Widget _homeScaffold(BuildContext context) {
     final detail = selectedThread != null;
+    final pendingConnection =
+        connectionStatus == RemoteConnectionStatus.connecting ||
+        connectionStatus == RemoteConnectionStatus.reconnecting;
+    final content = settingsOpen
+        ? _settingsView()
+        : detail
+        ? _threadView()
+        : projectsView
+        ? _projectsView()
+        : _threadsView();
     return Scaffold(
       drawer: _drawer(context),
       appBar: AppBar(
@@ -29,20 +39,27 @@ extension _HomeScaffold on _RemoteHomePageState {
               ),
         actions: [
           Icon(
-            connected ? Icons.cloud_done : Icons.cloud_off,
-            color: connected ? Colors.greenAccent : Colors.white38,
+            connected
+                ? Icons.cloud_done
+                : pendingConnection
+                ? Icons.cloud_sync
+                : Icons.cloud_off,
+            color: connected
+                ? Colors.greenAccent
+                : pendingConnection
+                ? Colors.amberAccent
+                : Colors.white38,
             size: 20,
           ),
           const SizedBox(width: 16),
         ],
       ),
-      body: settingsOpen
-          ? _settingsView()
-          : detail
-          ? _threadView()
-          : projectsView
-          ? _projectsView()
-          : _threadsView(),
+      body: Column(
+        children: [
+          if (!connected) _connectionBanner(),
+          Expanded(child: content),
+        ],
+      ),
       floatingActionButton: !settingsOpen && !detail && connected
           ? FloatingActionButton(
               onPressed: busy ? null : createThread,
@@ -50,6 +67,47 @@ extension _HomeScaffold on _RemoteHomePageState {
               child: const Icon(Icons.add),
             )
           : null,
+    );
+  }
+
+  Widget _connectionBanner() {
+    final connecting = connectionStatus == RemoteConnectionStatus.connecting;
+    final pending =
+        connectionStatus == RemoteConnectionStatus.reconnecting || connecting;
+    final canReconnect =
+        !busy && endpoint.text.trim().isNotEmpty && accessToken.text.isNotEmpty;
+    return Material(
+      color: pending
+          ? const Color(0xff6b4f00)
+          : Theme.of(context).colorScheme.errorContainer,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              Icon(pending ? Icons.cloud_sync : Icons.cloud_off),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  connecting
+                      ? 'Connecting...'
+                      : pending
+                      ? 'Reconnecting...'
+                      : 'Offline',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              if (!pending)
+                FilledButton.icon(
+                  onPressed: canReconnect ? reconnect : null,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Reconnect'),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
