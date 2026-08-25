@@ -82,6 +82,7 @@ extension _HomeScaffold on _RemoteHomePageState {
           : Theme.of(context).colorScheme.errorContainer,
       child: SafeArea(
         top: false,
+        bottom: false,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
