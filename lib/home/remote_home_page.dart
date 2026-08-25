@@ -57,6 +57,26 @@ class RemoteHomePage extends StatefulWidget {
 
 enum RemoteConnectionStatus { offline, connecting, reconnecting, online }
 
+Timer startPeriodicRefresh({
+  required Duration interval,
+  required bool Function() active,
+  required Future<void> Function() refresh,
+}) {
+  var refreshing = false;
+  return Timer.periodic(interval, (timer) async {
+    if (!active()) {
+      timer.cancel();
+    } else if (!refreshing) {
+      refreshing = true;
+      try {
+        await refresh();
+      } finally {
+        refreshing = false;
+      }
+    }
+  });
+}
+
 class _RemoteHomePageState extends State<RemoteHomePage> {
   static const connectionsKey = 'connections';
   static const permissionModeKey = 'permission_mode';
@@ -68,6 +88,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   final search = TextEditingController();
   RemoteApi? api;
   StreamSubscription<Map<String, dynamic>>? eventSubscription;
+  Timer? historyRefreshTimer;
   Future<void>? connectionRecovery;
   Future<void>? threadReload;
   List<Map<String, dynamic>> threads = [];
@@ -105,6 +126,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   @override
   void dispose() {
     _releaseSelectedThread();
+    historyRefreshTimer?.cancel();
     eventSubscription?.cancel();
     unawaited(api?.close());
     for (final controller in [endpoint, accessToken, input, search]) {
@@ -666,6 +688,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   void _openThread(String id, {bool owned = false}) {
     _releaseSelectedThread(id);
+    _stopHistoryRefresh();
     setState(() {
       selectedThread = id;
       selectedProject = null;
@@ -753,6 +776,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         threadOwned = true;
         threadConflict = false;
       });
+      _stopHistoryRefresh();
     } catch (error) {
       if (!mounted || selectedThread != id) return;
       final conflict = error is ApiException && error.isConflict;
@@ -764,12 +788,37 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             ? 'Active in another app. This thread is read-only.'
             : error.toString();
       });
+      if (conflict) {
+        _startHistoryRefresh(id);
+      } else {
+        _stopHistoryRefresh();
+      }
     }
+  }
+
+  void _startHistoryRefresh(String id) {
+    _stopHistoryRefresh();
+    if (connected && !loadingHistory) {
+      unawaited(_loadHistory(id, force: true));
+    }
+    historyRefreshTimer = startPeriodicRefresh(
+      interval: const Duration(seconds: 1),
+      active: () => mounted && selectedThread == id && threadConflict,
+      refresh: () => connected && !loadingHistory
+          ? _loadHistory(id, force: true)
+          : Future.value(),
+    );
+  }
+
+  void _stopHistoryRefresh() {
+    historyRefreshTimer?.cancel();
+    historyRefreshTimer = null;
   }
 
   void _releaseSelectedThread([String? nextThread]) {
     final id = selectedThread;
     if (id == null || id == nextThread) return;
+    _stopHistoryRefresh();
     final owned = threadOwned;
     threadOwned = false;
     threadClaiming = false;
@@ -811,6 +860,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         threadConflict = false;
         message = 'Thread taken over';
       });
+      _stopHistoryRefresh();
       await _loadHistory(id, force: true);
     });
   }

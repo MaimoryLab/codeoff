@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:codex_remote/api.dart';
+import 'package:codex_remote/home/remote_home_page.dart'
+    show startPeriodicRefresh;
 import 'package:codex_remote/main.dart';
 
 void main() {
@@ -141,6 +143,30 @@ void main() {
 
     await api.close();
     await server.close(force: true);
+  });
+
+  test('periodic refresh stops when its view becomes inactive', () async {
+    var active = true;
+    var refreshes = 0;
+    final reachedThree = Completer<void>();
+    final timer = startPeriodicRefresh(
+      interval: const Duration(milliseconds: 5),
+      active: () => active,
+      refresh: () async {
+        refreshes++;
+        if (refreshes == 3) {
+          active = false;
+          reachedThree.complete();
+        }
+      },
+    );
+    addTearDown(timer.cancel);
+
+    await reachedThree.future.timeout(const Duration(seconds: 1));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(refreshes, 3);
+    expect(timer.isActive, false);
   });
 
   test('maps permission modes to Codex turn policies', () {
