@@ -975,7 +975,9 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+      ..showSnackBar(
+        SnackBar(content: Text(text), duration: const Duration(seconds: 1)),
+      );
   }
 
   Future<void> _disconnect() async {
