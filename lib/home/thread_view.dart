@@ -239,6 +239,30 @@ extension _ThreadView on _RemoteHomePageState {
                     ],
                   ),
                 ),
+              if (uploadingAttachments && attachments.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        context.t('uploadingAttachment', {
+                          'current': '$uploadingAttachmentIndex',
+                          'total': '${attachments.length}',
+                          'name':
+                              attachments[uploadingAttachmentIndex - 1].name,
+                        }),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white60),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('${(attachmentProgress * 100).round()}%'),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                LinearProgressIndicator(value: attachmentProgress),
+              ],
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [

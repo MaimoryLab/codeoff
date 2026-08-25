@@ -257,6 +257,37 @@ void main() {
     await server.close(force: true);
   });
 
+  test('reports upload progress for each byte chunk', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      final socket = await WebSocketTransformer.upgrade(request);
+      socket.listen((data) {
+        final value = jsonDecode('$data') as Map<String, dynamic>;
+        socket.add(
+          jsonEncode({
+            'id': value['id'],
+            'result': {'path': '/tmp/uploaded.txt'},
+          }),
+        );
+      });
+    });
+    final api = RemoteApi('http://${server.address.address}:${server.port}');
+    final progress = <int>[];
+    final uploaded = await api.upload(
+      'upload.txt',
+      Stream<List<int>>.fromIterable([
+        [1, 2],
+        [3, 4, 5],
+      ]),
+      onProgress: progress.add,
+    );
+
+    expect(progress, [2, 5]);
+    expect(uploaded.path, '/tmp/uploaded.txt');
+    await api.close();
+    await server.close(force: true);
+  });
+
   test('reconnect makes exactly three attempts', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     var attempts = 0;

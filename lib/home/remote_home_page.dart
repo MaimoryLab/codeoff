@@ -122,6 +122,9 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   bool threadClaiming = false;
   bool threadOwned = false;
   bool threadConflict = false;
+  bool uploadingAttachments = false;
+  int uploadingAttachmentIndex = 0;
+  double attachmentProgress = 0;
   String? loadedHistoryFor;
   final pendingReleases = <String>{};
   List<PlatformFile> attachments = [];
@@ -598,9 +601,30 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       if (_threadNeedsResume(thread)) await api!.resumeThread(id);
       final active = remoteThreadIsActive(thread);
       final uploaded = <RemoteAttachment>[];
-      for (final attachment in attachments) {
+      final pendingAttachments = List<PlatformFile>.of(attachments);
+      for (var index = 0; index < pendingAttachments.length; index++) {
+        final attachment = pendingAttachments[index];
+        if (mounted) {
+          setState(() {
+            uploadingAttachments = true;
+            uploadingAttachmentIndex = index + 1;
+            attachmentProgress = 0;
+          });
+        }
+        final totalBytes = await attachment.length();
         uploaded.add(
-          await api!.upload(attachment.name, attachment.readAsByteStream()),
+          await api!.upload(
+            attachment.name,
+            attachment.readAsByteStream(),
+            onProgress: (bytesRead) {
+              if (!mounted) return;
+              setState(() {
+                attachmentProgress = totalBytes == 0
+                    ? 1
+                    : (bytesRead / totalBytes).clamp(0, 1).toDouble();
+              });
+            },
+          ),
         );
       }
       dynamic response;
@@ -936,7 +960,14 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         }
       }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() {
+          busy = false;
+          uploadingAttachments = false;
+          uploadingAttachmentIndex = 0;
+          attachmentProgress = 0;
+        });
+      }
     }
   }
 

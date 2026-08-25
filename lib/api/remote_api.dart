@@ -137,11 +137,15 @@ class RemoteApi {
     },
   );
 
-  Future<RemoteAttachment> upload(String name, Stream<List<int>> bytes) async {
-    final chunks = await bytes.toList();
+  Future<RemoteAttachment> upload(
+    String name,
+    Stream<List<int>> bytes, {
+    void Function(int bytesRead)? onProgress,
+  }) async {
     final data = <int>[];
-    for (final chunk in chunks) {
+    await for (final chunk in bytes) {
       data.addAll(chunk);
+      onProgress?.call(data.length);
     }
     final value = await _request(
       'upload',
