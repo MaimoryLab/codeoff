@@ -154,8 +154,7 @@ extension _HomeScaffold on _RemoteHomePageState {
             child: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: Color(0xffd78360),
-                  child: Icon(Icons.auto_awesome, color: Colors.white),
+                  backgroundImage: AssetImage('assets/codex_remote_logo.png'),
                 ),
                 SizedBox(width: 12),
                 Text(
