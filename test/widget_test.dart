@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:codex_remote/api.dart';
 import 'package:codex_remote/home/remote_home_page.dart'
     show rememberRemoteConnection, startPeriodicRefresh;
+import 'package:codex_remote/home/pairing_payload.dart';
 import 'package:codex_remote/main.dart';
 
 void main() {
@@ -50,6 +51,42 @@ void main() {
 
     expect(connections.map((record) => record['serverId']), ['last', 'first']);
     expect(connections.first['name'], 'Last');
+  });
+
+  test('parses pairing QR endpoints in local-first order', () {
+    final payload = PairingPayload.parse(
+      jsonEncode({
+        'serverUuid': 'server-1',
+        'pairingCode': 'ABCD1234',
+        'listenAddresses': [
+          'http://192.168.1.2:11037',
+          'http://192.168.1.2:11037/',
+          'file:///tmp/not-allowed',
+        ],
+        'tunnelAddress': 'https://example.trycloudflare.com',
+      }),
+    );
+
+    expect(payload.serverUuid, 'server-1');
+    expect(payload.pairingCode, 'ABCD1234');
+    expect(payload.endpoints, [
+      'http://192.168.1.2:11037',
+      'https://example.trycloudflare.com',
+    ]);
+  });
+
+  test('rejects pairing QR codes without a usable endpoint', () {
+    expect(
+      () => PairingPayload.parse(
+        jsonEncode({
+          'serverUuid': 'server-1',
+          'pairingCode': 'ABCD1234',
+          'listenAddresses': ['file:///tmp/not-allowed'],
+          'tunnelAddress': '',
+        }),
+      ),
+      throwsFormatException,
+    );
   });
 
   test('finds the in-progress turn in a thread response', () {
