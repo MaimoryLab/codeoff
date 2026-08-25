@@ -1,0 +1,284 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+
+class AppLocalizations {
+  const AppLocalizations(this.locale);
+
+  final Locale locale;
+
+  static const supportedLocales = [Locale('en'), Locale('zh')];
+
+  static const _values = <String, Map<String, String>>{
+    'en': {
+      'language': 'Language',
+      'english': 'English',
+      'chinese': '简体中文',
+      'settings': 'Settings',
+      'back': 'Back',
+      'menu': 'Menu',
+      'projects': 'Projects',
+      'recent': 'Recent',
+      'new': 'New',
+      'newThread': 'New thread',
+      'moreRecentChats': 'More recent chats',
+      'noRecentChats': 'No recent chats',
+      'moreProjects': 'More projects',
+      'noProjects': 'No projects',
+      'noProjectsYet': 'No projects yet',
+      'connectToDesktop': 'Connect to a desktop',
+      'desktopEndpoint': 'Desktop endpoint',
+      'connect': 'Connect',
+      'connectionHistory': 'Connection history',
+      'noSavedConnections': 'No saved connections',
+      'edit': 'Edit',
+      'delete': 'Delete',
+      'reconnect': 'Reconnect',
+      'connecting': 'Connecting...',
+      'reconnecting': 'Reconnecting...',
+      'offline': 'Offline',
+      'connected': 'Connected',
+      'connectionRemoved': 'Connection removed',
+      'pairThisDevice': 'Pair this device',
+      'pairingCode': 'Pairing code',
+      'deviceName': 'Device name',
+      'name': 'Name',
+      'cancel': 'Cancel',
+      'pair': 'Pair',
+      'threadActions': 'Thread actions',
+      'rename': 'Rename',
+      'archive': 'Archive',
+      'renameThread': 'Rename thread',
+      'save': 'Save',
+      'renaming': 'Renaming...',
+      'archiveThreadQuestion': 'Archive thread?',
+      'archiveThreadContent': '"{name}" will be removed from Recent.',
+      'archiving': 'Archiving...',
+      'working': 'Working',
+      'takeOver': 'Take over',
+      'takingOver': 'Taking over...',
+      'takeOverDescription': 'This closes the desktop app using this thread. Other active threads in that app will also stop.',
+      'activeThreadReadOnly':
+          'Active in another app. This thread is read-only.',
+      'attachFileOrImage': 'Attach file or image',
+      'chooseImages': 'Choose images',
+      'chooseFiles': 'Choose files',
+      'checkingAccess': 'Checking access...',
+      'message': 'Message',
+      'activeInAnotherApp': 'Active in another app',
+      'unableToSend': 'Unable to send',
+      'send': 'Send',
+      'noMessages': 'No messages in this thread',
+      'reason': 'Reason',
+      'deny': 'Deny',
+      'allow': 'Allow',
+      'chooseStartupFolder': 'Choose startup folder',
+      'parentFolder': 'Parent folder',
+      'noSubfolders': 'No subfolders',
+      'useFolder': 'Use folder',
+      'startingThread': 'Starting thread...',
+      'sending': 'Sending...',
+      'sendingDecision': 'Sending decision...',
+      'takeOverThreadQuestion': 'Take over this thread?',
+      'threadTakenOver': 'Thread taken over',
+      'searchThreads': 'Search threads',
+      'noThreadsYet': 'No threads yet',
+      'connectFromSettings': 'Connect from Settings to begin',
+      'approvalRequested': 'Approval requested',
+      'messageSent': 'Message sent',
+      'turnStarted': 'Turn started',
+      'thinking': 'Thinking: {text}',
+      'connectionLost': 'Connection lost. Reconnecting...',
+      'disconnected': 'Disconnected: {error}',
+      'connectedTo': 'Connected to {name}',
+      'askForApproval': 'Ask for approval',
+      'approveForMe': 'Approve for me',
+      'fullAccess': 'Full access',
+      'runningCommand': 'Running a command',
+      'running': 'Running: {name}',
+      'callingTool': 'Calling a tool',
+      'calling': 'Calling: {name}',
+      'searchingWeb': 'Searching the web',
+      'applyingFileChanges': 'Applying file changes',
+      'runningAgentTask': 'Running an agent task',
+      'approval': 'Approval',
+      'command': 'Command',
+      'approvalReason': 'Codex needs your approval to continue.',
+      'approvalSuffix': '{kind} approval',
+      'thread': 'Thread',
+      'fileChanges': 'File changes',
+      'permissions': 'Permissions',
+      'tool': 'Tool',
+    },
+    'zh': {
+      'language': '语言',
+      'english': 'English',
+      'chinese': '简体中文',
+      'settings': '设置',
+      'back': '返回',
+      'menu': '菜单',
+      'projects': '项目',
+      'recent': '最近',
+      'new': '新建',
+      'newThread': '新建对话',
+      'moreRecentChats': '更多最近对话',
+      'noRecentChats': '暂无最近对话',
+      'moreProjects': '更多项目',
+      'noProjects': '暂无项目',
+      'noProjectsYet': '暂无项目',
+      'connectToDesktop': '连接到桌面端',
+      'desktopEndpoint': '桌面端地址',
+      'connect': '连接',
+      'connectionHistory': '连接历史',
+      'noSavedConnections': '暂无保存的连接',
+      'edit': '编辑',
+      'delete': '删除',
+      'reconnect': '重新连接',
+      'connecting': '连接中...',
+      'reconnecting': '重新连接中...',
+      'offline': '离线',
+      'connected': '已连接',
+      'connectionRemoved': '连接已移除',
+      'pairThisDevice': '配对此设备',
+      'pairingCode': '配对码',
+      'deviceName': '设备名称',
+      'name': '名称',
+      'cancel': '取消',
+      'pair': '配对',
+      'threadActions': '对话操作',
+      'rename': '重命名',
+      'archive': '归档',
+      'renameThread': '重命名对话',
+      'save': '保存',
+      'renaming': '重命名中...',
+      'archiveThreadQuestion': '归档对话？',
+      'archiveThreadContent': '“{name}”将从最近列表中移除。',
+      'archiving': '归档中...',
+      'working': '处理中',
+      'takeOver': '接管',
+      'takingOver': '接管中...',
+      'takeOverDescription': '这会关闭正在使用此对话的桌面应用，该应用中的其他活跃对话也会停止。',
+      'activeThreadReadOnly': '此对话正在其他应用中使用，当前为只读状态。',
+      'attachFileOrImage': '添加文件或图片',
+      'chooseImages': '选择图片',
+      'chooseFiles': '选择文件',
+      'checkingAccess': '正在检查权限...',
+      'message': '消息',
+      'activeInAnotherApp': '正在其他应用中使用',
+      'unableToSend': '无法发送',
+      'send': '发送',
+      'noMessages': '此对话暂无消息',
+      'reason': '原因',
+      'deny': '拒绝',
+      'allow': '允许',
+      'chooseStartupFolder': '选择启动目录',
+      'parentFolder': '上级目录',
+      'noSubfolders': '暂无子目录',
+      'useFolder': '使用此目录',
+      'startingThread': '正在创建对话...',
+      'sending': '发送中...',
+      'sendingDecision': '正在发送决定...',
+      'takeOverThreadQuestion': '接管此对话？',
+      'threadTakenOver': '已接管对话',
+      'searchThreads': '搜索对话',
+      'noThreadsYet': '暂无对话',
+      'connectFromSettings': '请先在设置中连接',
+      'approvalRequested': '收到审批请求',
+      'messageSent': '消息已发送',
+      'turnStarted': '已开始处理',
+      'thinking': '思考中：{text}',
+      'connectionLost': '连接已断开，正在重连...',
+      'disconnected': '已断开：{error}',
+      'connectedTo': '已连接到 {name}',
+      'askForApproval': '请求审批',
+      'approveForMe': '自动批准',
+      'fullAccess': '完全访问',
+      'runningCommand': '正在运行命令',
+      'running': '正在运行：{name}',
+      'callingTool': '正在调用工具',
+      'calling': '正在调用：{name}',
+      'searchingWeb': '正在搜索网页',
+      'applyingFileChanges': '正在应用文件变更',
+      'runningAgentTask': '正在运行代理任务',
+      'approval': '审批',
+      'command': '命令',
+      'approvalReason': 'Codex 需要你的批准才能继续。',
+      'approvalSuffix': '{kind}审批',
+      'thread': '对话',
+      'fileChanges': '文件变更',
+      'permissions': '权限',
+      'tool': '工具',
+    },
+  };
+
+  static AppLocalizations of(BuildContext context) =>
+      Localizations.of<AppLocalizations>(context, AppLocalizations)!;
+
+  String t(String key, [Map<String, String> args = const {}]) {
+    var value =
+        _values[locale.languageCode]?[key] ?? _values['en']![key] ?? key;
+    for (final entry in args.entries) {
+      value = value.replaceAll('{${entry.key}}', entry.value);
+    }
+    return value;
+  }
+}
+
+class AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+  const AppLocalizationsDelegate();
+
+  @override
+  bool isSupported(Locale locale) => AppLocalizations.supportedLocales.any(
+    (supported) => supported.languageCode == locale.languageCode,
+  );
+
+  @override
+  Future<AppLocalizations> load(Locale locale) =>
+      SynchronousFuture<AppLocalizations>(AppLocalizations(locale));
+
+  @override
+  bool shouldReload(AppLocalizationsDelegate old) => false;
+}
+
+extension AppLocalizationContext on BuildContext {
+  String t(String key, [Map<String, String> args = const {}]) =>
+      AppLocalizations.of(this).t(key, args);
+}
+
+class LocaleScope extends InheritedWidget {
+  const LocaleScope({
+    required this.locale,
+    required this.setLocale,
+    required super.child,
+    super.key,
+  });
+
+  final Locale locale;
+  final ValueChanged<Locale> setLocale;
+
+  static LocaleScope of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<LocaleScope>()!;
+
+  @override
+  bool updateShouldNotify(LocaleScope oldWidget) => locale != oldWidget.locale;
+}
+
+class LanguageMenu extends StatelessWidget {
+  const LanguageMenu({super.key});
+
+  @override
+  Widget build(BuildContext context) => PopupMenuButton<Locale>(
+    tooltip: context.t('language'),
+    icon: const Icon(Icons.language),
+    onSelected: LocaleScope.of(context).setLocale,
+    itemBuilder: (context) => [
+      PopupMenuItem(
+        value: const Locale('en'),
+        child: Text(context.t('english')),
+      ),
+      PopupMenuItem(
+        value: const Locale('zh'),
+        child: Text(context.t('chinese')),
+      ),
+    ],
+  );
+}
