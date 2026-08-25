@@ -764,8 +764,8 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     });
   }
 
-  void _showThreads() {
-    Navigator.of(context).maybePop();
+  void _showThreads({bool popRoute = true}) {
+    if (popRoute) Navigator.of(context).maybePop();
     _releaseSelectedThread();
     setState(() {
       settingsOpen = false;

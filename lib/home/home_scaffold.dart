@@ -18,7 +18,7 @@ extension _HomeScaffold on _RemoteHomePageState {
     return PopScope(
       canPop: canPop,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && !canPop) _showThreads();
+        if (!didPop && !canPop) _showThreads(popRoute: false);
       },
       child: Scaffold(
         drawer: _drawer(context),
@@ -29,7 +29,7 @@ extension _HomeScaffold on _RemoteHomePageState {
               tooltip: detail ? context.t('back') : context.t('menu'),
               icon: Icon(detail ? Icons.arrow_back : Icons.menu),
               onPressed: detail
-                  ? _showThreads
+                  ? () => _showThreads(popRoute: false)
                   : () => Scaffold.of(context).openDrawer(),
             ),
           ),
