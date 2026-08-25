@@ -75,6 +75,18 @@ void main() {
     ]);
   });
 
+  test('recognizes only Cloudflare tunnel endpoints for retry', () {
+    expect(
+      isCloudflareTunnelEndpoint('https://demo.trycloudflare.com'),
+      isTrue,
+    );
+    expect(
+      isCloudflareTunnelEndpoint('https://not-trycloudflare.com'),
+      isFalse,
+    );
+    expect(isCloudflareTunnelEndpoint('http://192.168.1.2:11037'), isFalse);
+  });
+
   test('rejects pairing QR codes without a usable endpoint', () {
     expect(
       () => PairingPayload.parse(

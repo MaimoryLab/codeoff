@@ -9,6 +9,13 @@ class _PairingFailure implements Exception {
   String toString() => message;
 }
 
+const _tunnelRetryCount = 6;
+
+bool _shouldRetryTunnel(String endpoint, Object error) =>
+    isCloudflareTunnelEndpoint(endpoint) &&
+    error is ApiException &&
+    error.statusCode == null;
+
 extension _PairingScanner on _RemoteHomePageState {
   Future<void> scanPairingCode() async {
     final raw = await Navigator.of(context).push<String>(
@@ -52,20 +59,33 @@ extension _PairingScanner on _RemoteHomePageState {
       if (payload.pairingCode.isEmpty) throw _PairingFailure(serverNotPaired);
       Object? lastError;
       for (final candidate in payload.endpoints) {
-        final client = RemoteApi(candidate);
-        try {
-          final value = await client.pair(payload.pairingCode, deviceName);
-          final server = _serverFrom(value);
-          if ('${server['id'] ?? ''}' != payload.serverUuid) {
-            throw const _PairingFailure('Pairing server UUID mismatch');
+        final attempts = isCloudflareTunnelEndpoint(candidate)
+            ? _tunnelRetryCount
+            : 1;
+        for (var attempt = 0; attempt < attempts; attempt++) {
+          final client = RemoteApi(candidate);
+          try {
+            final value = await client.pair(payload.pairingCode, deviceName);
+            final server = _serverFrom(value);
+            if ('${server['id'] ?? ''}' != payload.serverUuid) {
+              throw const _PairingFailure('Pairing server UUID mismatch');
+            }
+            token = _stringValue(value, 'token');
+            break;
+          } catch (error) {
+            lastError = error;
+            if (attempt + 1 == attempts ||
+                !_shouldRetryTunnel(candidate, error)) {
+              break;
+            }
+            await Future<void>.delayed(
+              Duration(milliseconds: 500 * (attempt + 1)),
+            );
+          } finally {
+            await client.close();
           }
-          token = _stringValue(value, 'token');
-          break;
-        } catch (error) {
-          lastError = error;
-        } finally {
-          await client.close();
         }
+        if (token.isNotEmpty) break;
       }
       if (token.isEmpty) {
         throw _PairingFailure(lastError?.toString() ?? noReachableAddress);
@@ -96,16 +116,27 @@ extension _PairingScanner on _RemoteHomePageState {
     String serverUuid,
   ) async {
     for (final candidate in candidates) {
-      final client = RemoteApi(candidate, token: token);
-      try {
-        final status = await client.status();
-        if ('${_serverFrom(status)['id'] ?? ''}' == serverUuid) {
-          return candidate;
+      final attempts = isCloudflareTunnelEndpoint(candidate)
+          ? _tunnelRetryCount
+          : 1;
+      for (var attempt = 0; attempt < attempts; attempt++) {
+        final client = RemoteApi(candidate, token: token);
+        try {
+          final status = await client.status();
+          if ('${_serverFrom(status)['id'] ?? ''}' == serverUuid) {
+            return candidate;
+          }
+        } catch (error) {
+          if (attempt + 1 == attempts ||
+              !_shouldRetryTunnel(candidate, error)) {
+            break;
+          }
+          await Future<void>.delayed(
+            Duration(milliseconds: 500 * (attempt + 1)),
+          );
+        } finally {
+          await client.close();
         }
-      } catch (_) {
-        // Try the next advertised address.
-      } finally {
-        await client.close();
       }
     }
     return null;

@@ -54,3 +54,8 @@ String? normalizeServerEndpoint(dynamic value) {
   }
   return uri.toString();
 }
+
+bool isCloudflareTunnelEndpoint(String endpoint) {
+  final host = Uri.tryParse(endpoint)?.host.toLowerCase();
+  return host != null && host.endsWith('.trycloudflare.com');
+}
