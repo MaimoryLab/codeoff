@@ -88,7 +88,7 @@ Timer startPeriodicRefresh({
 
 class _RemoteHomePageState extends State<RemoteHomePage> {
   static const threadPageSize = 100;
-  static const connectionStore = ConnectionStore(FlutterSecureStorage());
+  final connectionStore = ConnectionStore(const FlutterSecureStorage());
   final threadCache = ThreadCache();
   final endpoint = TextEditingController();
   final accessToken = TextEditingController();
@@ -102,7 +102,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   List<Map<String, dynamic>> threads = [];
   Map<String, List<Map<String, dynamic>>> historyCache = {};
   List<Map<String, dynamic>> approvals = [];
-  List<Map<String, String>> connections = [];
   List<Map<String, dynamic>> history = [];
   String? selectedThread;
   String? selectedProject;
@@ -127,6 +126,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   RemotePermissionMode permissionMode = RemotePermissionMode.requestApproval;
 
   RemoteApi? get api => remoteConnection.client;
+  List<Map<String, String>> get connections => connectionStore.connections;
   RemoteConnectionStatus get connectionStatus => remoteConnection.status;
   bool get connected => connectionStatus == RemoteConnectionStatus.online;
 

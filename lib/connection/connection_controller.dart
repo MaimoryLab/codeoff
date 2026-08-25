@@ -57,11 +57,10 @@ extension _ConnectionController on _RemoteHomePageState {
       'endpoint': endpointValue,
       'token': token,
     };
-    connections = rememberRemoteConnection(connections, record);
+    await connectionStore.remember(record);
     activeConnectionId = record['serverId'];
     endpoint.text = endpointValue;
     accessToken.text = token;
-    await _saveConnection();
     await _restoreThreadCache(serverId);
     await _reloadThreads();
     if (!mounted) return;
@@ -233,79 +232,58 @@ extension _ConnectionController on _RemoteHomePageState {
       address.dispose();
     });
     if (!mounted || changed == null) return;
-    final index = connections.indexOf(record);
-    if (index == -1) return;
+    if (!connections.contains(record)) return;
     final wasActive = record['serverId'] == activeConnectionId;
     final addressChanged = record['endpoint'] != changed['endpoint'];
     if (wasActive && addressChanged) await _disconnect();
     if (!mounted) return;
-    final updated = {...record, ...changed};
-    setState(() => connections = [...connections]..[index] = updated);
+    final updated = await connectionStore.update(record, changed);
+    if (!mounted || updated == null) return;
+    setState(() {});
     if (wasActive) {
       endpoint.text = updated['endpoint'] ?? '';
       accessToken.text = updated['token'] ?? '';
     }
-    await _saveConnection();
   }
 
   Future<void> _deleteConnection(Map<String, String> record) async {
     if (record['serverId'] == activeConnectionId) await _disconnect();
     if (!mounted) return;
-    setState(() => connections = [...connections]..remove(record));
+    await connectionStore.remove(record);
+    if (!mounted) return;
+    setState(() {});
     if (connections.isEmpty) {
       endpoint.clear();
       accessToken.clear();
     }
-    await _saveConnection();
-    if (!mounted) return;
     _toast(context.t('connectionRemoved'));
   }
 
   Future<void> _restoreConnection() async {
-    try {
-      final savedConnections = await _RemoteHomePageState.connectionStore
-          .loadConnections();
-      final savedPermission = await _RemoteHomePageState.connectionStore
-          .loadPermissionMode();
-      if (!mounted) return;
-      connections = savedConnections;
-      setState(() {
-        if (connections.isNotEmpty) {
-          final recent = connections.first;
-          activeConnectionId = recent['serverId'];
-          endpoint.text = recent['endpoint'] ?? '';
-          accessToken.text = recent['token'] ?? '';
-        }
-        permissionMode = RemotePermissionMode.values.firstWhere(
-          (mode) => mode.name == savedPermission,
-          orElse: () => RemotePermissionMode.requestApproval,
-        );
-      });
+    await connectionStore.load();
+    if (!mounted) return;
+    setState(() {
       if (connections.isNotEmpty) {
         final recent = connections.first;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) unawaited(_connectSaved(recent));
-        });
+        activeConnectionId = recent['serverId'];
+        endpoint.text = recent['endpoint'] ?? '';
+        accessToken.text = recent['token'] ?? '';
       }
-    } catch (_) {
-      // Stored connection settings are optional; the user can enter them again.
+      permissionMode = RemotePermissionMode.values.firstWhere(
+        (mode) => mode.name == connectionStore.permissionMode,
+        orElse: () => RemotePermissionMode.requestApproval,
+      );
+    });
+    if (connections.isNotEmpty) {
+      final recent = connections.first;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_connectSaved(recent));
+      });
     }
   }
 
   Future<void> setPermissionMode(RemotePermissionMode mode) async {
     setState(() => permissionMode = mode);
-    try {
-      await _RemoteHomePageState.connectionStore.savePermissionMode(mode.name);
-    } catch (_) {
-      // Permission persistence is optional; the selected mode still applies.
-    }
-  }
-
-  Future<void> _saveConnection() async {
-    try {
-      await _RemoteHomePageState.connectionStore.saveConnections(connections);
-    } catch (_) {
-      // A storage failure must not prevent an otherwise valid connection.
-    }
+    await connectionStore.setPermissionMode(mode.name);
   }
 }

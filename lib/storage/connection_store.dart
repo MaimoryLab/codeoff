@@ -14,31 +14,77 @@ List<Map<String, String>> rememberRemoteConnection(
 ];
 
 class ConnectionStore {
-  const ConnectionStore(this.storage);
+  ConnectionStore(this.storage);
 
   final FlutterSecureStorage storage;
+  List<Map<String, String>> _connections = [];
+  String? permissionMode;
 
-  Future<List<Map<String, String>>> loadConnections() async {
-    final saved = await storage.read(key: _connectionsKey);
-    if (saved == null || saved.isEmpty) return [];
-    final value = jsonDecode(saved);
-    if (value is! List) return [];
-    return value
-        .whereType<Map>()
-        .map((item) => item.map((key, value) => MapEntry('$key', '$value')))
-        .where(
-          (item) =>
-              item['endpoint']?.isNotEmpty == true &&
-              item['token']?.isNotEmpty == true,
-        )
-        .toList();
+  List<Map<String, String>> get connections => List.unmodifiable(_connections);
+
+  Future<void> load() async {
+    try {
+      final saved = await storage.read(key: _connectionsKey);
+      final value = saved == null || saved.isEmpty ? null : jsonDecode(saved);
+      _connections = value is List
+          ? value
+                .whereType<Map>()
+                .map(
+                  (item) =>
+                      item.map((key, value) => MapEntry('$key', '$value')),
+                )
+                .where(
+                  (item) =>
+                      item['endpoint']?.isNotEmpty == true &&
+                      item['token']?.isNotEmpty == true,
+                )
+                .toList()
+          : [];
+      permissionMode = await storage.read(key: _permissionModeKey);
+    } catch (_) {
+      // Stored settings are optional; callers can enter them again.
+    }
   }
 
-  Future<void> saveConnections(List<Map<String, String>> connections) =>
-      storage.write(key: _connectionsKey, value: jsonEncode(connections));
+  Future<void> remember(Map<String, String> record) async {
+    _connections = rememberRemoteConnection(_connections, record);
+    await _saveConnections();
+  }
 
-  Future<String?> loadPermissionMode() => storage.read(key: _permissionModeKey);
+  Future<Map<String, String>?> update(
+    Map<String, String> record,
+    Map<String, String> changes,
+  ) async {
+    final index = _connections.indexOf(record);
+    if (index == -1) return null;
+    final updated = {...record, ...changes};
+    _connections = [..._connections]..[index] = updated;
+    await _saveConnections();
+    return updated;
+  }
 
-  Future<void> savePermissionMode(String mode) =>
-      storage.write(key: _permissionModeKey, value: mode);
+  Future<void> remove(Map<String, String> record) async {
+    _connections = [..._connections]..remove(record);
+    await _saveConnections();
+  }
+
+  Future<void> setPermissionMode(String mode) async {
+    permissionMode = mode;
+    try {
+      await storage.write(key: _permissionModeKey, value: mode);
+    } catch (_) {
+      // The in-memory selection remains usable when persistence is unavailable.
+    }
+  }
+
+  Future<void> _saveConnections() async {
+    try {
+      await storage.write(
+        key: _connectionsKey,
+        value: jsonEncode(_connections),
+      );
+    } catch (_) {
+      // The active connection remains usable when persistence is unavailable.
+    }
+  }
 }
