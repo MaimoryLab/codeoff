@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'home/remote_home_page.dart';
 import 'i18n.dart';
@@ -23,7 +24,12 @@ class _CodexRemoteAppState extends State<CodexRemoteApp> {
         title: 'Codex Remote',
         locale: locale,
         supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: const [AppLocalizationsDelegate()],
+        localizationsDelegates: const [
+          AppLocalizationsDelegate(),
+          GlobalMaterialLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+        ],
         theme: ThemeData(
           brightness: Brightness.dark,
           scaffoldBackgroundColor: background,

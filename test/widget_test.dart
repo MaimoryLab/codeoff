@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
 
 import 'package:codex_remote/api.dart';
 import 'package:codex_remote/home/remote_home_page.dart'
@@ -243,5 +244,17 @@ void main() {
     expect(find.text('Desktop endpoint'), findsOneWidget);
     expect(find.text('Connect to a desktop'), findsOneWidget);
     expect(find.text('Connection history'), findsOneWidget);
+  });
+
+  testWidgets('renders Chinese Material controls', (WidgetTester tester) async {
+    await tester.pumpWidget(const CodexRemoteApp());
+    await tester.tap(find.byIcon(Icons.language));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('简体中文'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('设置'), findsOneWidget);
+    expect(find.text('桌面端地址'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
   });
 }
