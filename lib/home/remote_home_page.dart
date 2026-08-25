@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../i18n.dart';
+import '../local_notifications.dart';
 import '../remote/remote_connection.dart';
 import '../storage/connection_store.dart';
 import '../storage/thread_cache.dart';
@@ -94,7 +95,8 @@ Timer startPeriodicRefresh({
   });
 }
 
-class _RemoteHomePageState extends State<RemoteHomePage> {
+class _RemoteHomePageState extends State<RemoteHomePage>
+    with WidgetsBindingObserver {
   static const threadPageSize = 100;
   final endpoint = TextEditingController();
   final accessToken = TextEditingController();
@@ -130,6 +132,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   double attachmentProgress = 0;
   String? loadedHistoryFor;
   final pendingReleases = <String>{};
+  final notifiedThreads = <String>{};
   List<PlatformFile> attachments = [];
   RemotePermissionMode permissionMode = RemotePermissionMode.requestApproval;
 
@@ -141,6 +144,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     statusSubscription = remoteConnection.statuses.listen(
       _handleConnectionStatus,
     );
@@ -150,6 +154,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _releaseSelectedThread();
     historyRefreshTimer?.cancel();
     statusSubscription.cancel();
@@ -158,6 +163,20 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       controller.dispose();
     }
     super.dispose();
+  }
+
+  bool appInBackground = false;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    appInBackground = switch (state) {
+      AppLifecycleState.resumed => false,
+      AppLifecycleState.inactive ||
+      AppLifecycleState.hidden ||
+      AppLifecycleState.paused ||
+      AppLifecycleState.detached => true,
+    };
+    if (!appInBackground) notifiedThreads.clear();
   }
 
   Future<void> _run(String pending, Future<void> Function() operation) async {

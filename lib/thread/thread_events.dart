@@ -3,6 +3,25 @@
 part of '../home/remote_home_page.dart';
 
 extension _RemoteEvents on _RemoteHomePageState {
+  void _notifyForMessage(String threadId) {
+    if (!shouldNotifyThreadMessage(threadId, selectedThread)) return;
+    if (!notifiedThreads.add(threadId)) return;
+    final title = threads
+        .where((thread) => _threadId(thread) == threadId)
+        .map(_threadTitle)
+        .firstWhere(
+          (value) => value.isNotEmpty,
+          orElse: () => context.t('thread'),
+        );
+    unawaited(
+      LocalNotifications.instance.showThreadMessage(
+        title,
+        context.t('newMessage'),
+        threadId,
+      ),
+    );
+  }
+
   void _handleRemoteEvent(Map<String, dynamic> event) {
     if (!mounted) return;
     final id = event['id'];
@@ -49,6 +68,9 @@ extension _RemoteEvents on _RemoteHomePageState {
     }
     if (method == 'item/agentMessage/delta' && threadId == selectedThread) {
       _appendAssistantDelta(params);
+    }
+    if (method == 'item/agentMessage/delta' && threadId != selectedThread) {
+      _notifyForMessage(threadId);
     }
     if (method == 'turn/started' && threadId == selectedThread) {
       setState(() {

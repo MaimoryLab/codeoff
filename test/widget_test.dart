@@ -24,6 +24,12 @@ void main() {
     );
   });
 
+  test('notifies only for a thread that is not open', () {
+    expect(shouldNotifyThreadMessage('thread-2', 'thread-1'), isTrue);
+    expect(shouldNotifyThreadMessage('thread-1', 'thread-1'), isFalse);
+    expect(shouldNotifyThreadMessage('', null), isFalse);
+  });
+
   test('sorts active threads ahead of newer idle threads', () {
     final threads = <Map<String, dynamic>>[
       {

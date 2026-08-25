@@ -177,6 +177,7 @@ extension _ThreadSession on _RemoteHomePageState {
   void _releaseSelectedThread([String? nextThread]) {
     final id = selectedThread;
     if (id == null || id == nextThread) return;
+    notifiedThreads.remove(id);
     _stopHistoryRefresh();
     final owned = threadOwned;
     threadOwned = false;

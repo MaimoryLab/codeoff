@@ -17,6 +17,9 @@ DateTime _unixTimestamp(num value) {
   ).toLocal();
 }
 
+bool shouldNotifyThreadMessage(String threadId, String? selectedThread) =>
+    threadId.isNotEmpty && threadId != selectedThread;
+
 bool remoteThreadIsActive(Map<String, dynamic> thread) {
   final status = thread['status'];
   return status is Map && status['type'] == 'active';
