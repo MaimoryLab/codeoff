@@ -14,12 +14,12 @@ class PairingPayload {
     final serverUuid = '${value['serverUuid'] ?? ''}'.trim();
     final pairingCode = '${value['pairingCode'] ?? ''}'.trim();
     final listenAddresses = value['listenAddresses'];
-    final tunnelAddress = _httpEndpoint(value['tunnelAddress']);
+    final tunnelAddress = normalizeServerEndpoint(value['tunnelAddress']);
     if (serverUuid.isEmpty || listenAddresses is! List) {
       throw const FormatException('Invalid pairing payload');
     }
     final endpoints = listenAddresses
-        .map(_httpEndpoint)
+        .map(normalizeServerEndpoint)
         .whereType<String>()
         .toList();
     if (endpoints.isEmpty && tunnelAddress == null) {
@@ -44,7 +44,7 @@ class PairingPayload {
   }.toList();
 }
 
-String? _httpEndpoint(dynamic value) {
+String? normalizeServerEndpoint(dynamic value) {
   final text = '${value ?? ''}'.trim().replaceFirst(RegExp(r'/+$'), '');
   final uri = Uri.tryParse(text);
   if (uri == null ||

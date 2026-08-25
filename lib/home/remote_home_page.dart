@@ -1013,14 +1013,38 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
 
   Future<void> _editConnection(Map<String, String> record) async {
     final name = TextEditingController(text: record['name']);
-    final changed = await showDialog<String>(
+    final address = TextEditingController(text: record['endpoint']);
+    final formKey = GlobalKey<FormState>();
+    final changed = await showDialog<Map<String, String>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(context.t('edit')),
-        content: TextField(
-          controller: name,
-          autofocus: true,
-          decoration: InputDecoration(labelText: context.t('name')),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: name,
+                autofocus: true,
+                decoration: InputDecoration(labelText: context.t('name')),
+                validator: (value) => value?.trim().isEmpty == false
+                    ? null
+                    : context.t('nameRequired'),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: address,
+                decoration: InputDecoration(
+                  labelText: context.t('serverAddress'),
+                ),
+                keyboardType: TextInputType.url,
+                validator: (value) => normalizeServerEndpoint(value) == null
+                    ? context.t('invalidServerAddress')
+                    : null,
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -1028,21 +1052,35 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             child: Text(context.t('cancel')),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, name.text.trim()),
+            onPressed: () {
+              if (formKey.currentState?.validate() != true) return;
+              Navigator.pop(dialogContext, {
+                'name': name.text.trim(),
+                'endpoint': normalizeServerEndpoint(address.text)!,
+              });
+            },
             child: Text(context.t('save')),
           ),
         ],
       ),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) => name.dispose());
-    if (!mounted || changed == null || changed.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      name.dispose();
+      address.dispose();
+    });
+    if (!mounted || changed == null) return;
     final index = connections.indexOf(record);
     if (index == -1) return;
-    setState(
-      () =>
-          connections = [...connections]
-            ..[index] = {...record, 'name': changed},
-    );
+    final wasActive = record['serverId'] == activeConnectionId;
+    final addressChanged = record['endpoint'] != changed['endpoint'];
+    if (wasActive && addressChanged) await _disconnect();
+    if (!mounted) return;
+    final updated = {...record, ...changed};
+    setState(() => connections = [...connections]..[index] = updated);
+    if (wasActive) {
+      endpoint.text = updated['endpoint'] ?? '';
+      accessToken.text = updated['token'] ?? '';
+    }
     await _saveConnection();
   }
 
