@@ -11,44 +11,54 @@ class ThreadCacheSnapshot {
 }
 
 class ThreadCache {
-  const ThreadCache();
-
   static const _directoryName = 'codex_remote_threads';
+  Future<void> _writes = Future.value();
 
-  Future<void> write(
+  void write(
     String serverId,
     List<Map<String, dynamic>> threads,
     Map<String, List<Map<String, dynamic>>> history,
-  ) async {
-    final file = await _file(serverId);
-    await file.writeAsString(
-      jsonEncode({'threads': threads, 'history': history}),
-      flush: true,
-    );
+  ) {
+    late final String payload;
+    try {
+      payload = jsonEncode({'threads': threads, 'history': history});
+    } catch (_) {
+      return;
+    }
+    _writes = _writes.then((_) async {
+      try {
+        final file = await _file(serverId);
+        await file.writeAsString(payload, flush: true);
+      } catch (_) {
+        // Cache storage is optional; callers use the live connection instead.
+      }
+    });
   }
 
   Future<ThreadCacheSnapshot> read(String serverId) async {
-    final file = await _file(serverId);
-    if (!await file.exists()) {
-      return const ThreadCacheSnapshot(threads: [], history: {});
-    }
-    final value = jsonDecode(await file.readAsString());
-    if (value is! Map) {
-      return const ThreadCacheSnapshot(threads: [], history: {});
-    }
-    final histories = <String, List<Map<String, dynamic>>>{};
-    final rawHistory = value['history'];
-    if (rawHistory is Map) {
-      for (final entry in rawHistory.entries) {
-        final items = _maps(entry.value);
-        if (items.isNotEmpty) histories['${entry.key}'] = items;
+    try {
+      final file = await _file(serverId);
+      if (!await file.exists()) return _emptySnapshot;
+      final value = jsonDecode(await file.readAsString());
+      if (value is! Map) return _emptySnapshot;
+      final histories = <String, List<Map<String, dynamic>>>{};
+      final rawHistory = value['history'];
+      if (rawHistory is Map) {
+        for (final entry in rawHistory.entries) {
+          final items = _maps(entry.value);
+          if (items.isNotEmpty) histories['${entry.key}'] = items;
+        }
       }
+      return ThreadCacheSnapshot(
+        threads: _maps(value['threads']),
+        history: histories,
+      );
+    } catch (_) {
+      return const ThreadCacheSnapshot(threads: [], history: {});
     }
-    return ThreadCacheSnapshot(
-      threads: _maps(value['threads']),
-      history: histories,
-    );
   }
+
+  static const _emptySnapshot = ThreadCacheSnapshot(threads: [], history: {});
 
   Future<File> _file(String serverId) async {
     final root = await getApplicationCacheDirectory();

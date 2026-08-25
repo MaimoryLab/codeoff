@@ -89,7 +89,7 @@ Timer startPeriodicRefresh({
 class _RemoteHomePageState extends State<RemoteHomePage> {
   static const threadPageSize = 100;
   static const connectionStore = ConnectionStore(FlutterSecureStorage());
-  static const threadCache = ThreadCache();
+  final threadCache = ThreadCache();
   final endpoint = TextEditingController();
   final accessToken = TextEditingController();
   final input = TextEditingController();
@@ -99,7 +99,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   late final StreamSubscription<Map<String, dynamic>> eventSubscription;
   Timer? historyRefreshTimer;
   Future<void>? threadReload;
-  Future<void> threadCacheWrite = Future.value();
   List<Map<String, dynamic>> threads = [];
   Map<String, List<Map<String, dynamic>>> historyCache = {};
   List<Map<String, dynamic>> approvals = [];
@@ -279,22 +278,11 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   void _queueThreadCacheWrite() {
     final serverId = activeConnectionId;
     if (serverId == null) return;
-    threadCacheWrite = threadCacheWrite.then((_) async {
-      try {
-        await threadCache.write(serverId, threads, historyCache);
-      } catch (_) {
-        // Cache storage is optional; the live connection remains authoritative.
-      }
-    });
+    threadCache.write(serverId, threads, historyCache);
   }
 
   Future<void> _restoreThreadCache(String serverId) async {
-    var snapshot = const ThreadCacheSnapshot(threads: [], history: {});
-    try {
-      snapshot = await threadCache.read(serverId);
-    } catch (_) {
-      // A stale or unavailable cache must not block a live connection.
-    }
+    final snapshot = await threadCache.read(serverId);
     if (!mounted || activeConnectionId != serverId) return;
     setState(() {
       threads = snapshot.threads;
