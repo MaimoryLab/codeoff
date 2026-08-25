@@ -21,13 +21,22 @@ extension _SettingsView on _RemoteHomePageState {
           keyboardType: TextInputType.url,
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: busy ? null : connect,
-            icon: const Icon(Icons.login),
-            label: Text(context.t('connect')),
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: busy ? null : connect,
+                icon: const Icon(Icons.login),
+                label: Text(context.t('connect')),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton.filledTonal(
+              tooltip: context.t('scanPairingCode'),
+              onPressed: busy ? null : scanPairingCode,
+              icon: const Icon(Icons.qr_code_scanner),
+            ),
+          ],
         ),
       ]),
       _settingsSection(context.t('connectionHistory'), [

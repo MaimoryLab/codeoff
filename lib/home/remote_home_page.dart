@@ -6,15 +6,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../i18n.dart';
+import 'pairing_payload.dart';
 
 part 'thread_data.dart';
 part 'settings_view.dart';
 part 'thread_view.dart';
 part 'home_scaffold.dart';
+part 'pairing_scanner.dart';
 
 class _DirectoryListing {
   const _DirectoryListing({
@@ -125,6 +128,10 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   RemotePermissionMode permissionMode = RemotePermissionMode.requestApproval;
 
   bool get connected => connectionStatus == RemoteConnectionStatus.online;
+
+  void _showConnectionStatus(RemoteConnectionStatus status) {
+    if (mounted) setState(() => connectionStatus = status);
+  }
 
   @override
   void initState() {
