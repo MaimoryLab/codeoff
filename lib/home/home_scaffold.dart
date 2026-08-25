@@ -38,8 +38,6 @@ extension _HomeScaffold on _RemoteHomePageState {
                     : _projectLabel(selectedProject!),
               ),
         actions: [
-          const LanguageMenu(),
-          const SizedBox(width: 4),
           Icon(
             connected
                 ? Icons.cloud_done

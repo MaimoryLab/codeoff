@@ -10,9 +10,6 @@ class AppLocalizations {
 
   static const _values = <String, Map<String, String>>{
     'en': {
-      'language': 'Language',
-      'english': 'English',
-      'chinese': '简体中文',
       'settings': 'Settings',
       'back': 'Back',
       'menu': 'Menu',
@@ -111,9 +108,6 @@ class AppLocalizations {
       'tool': 'Tool',
     },
     'zh': {
-      'language': '语言',
-      'english': 'English',
-      'chinese': '简体中文',
       'settings': '设置',
       'back': '返回',
       'menu': '菜单',
@@ -244,43 +238,4 @@ class AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
 extension AppLocalizationContext on BuildContext {
   String t(String key, [Map<String, String> args = const {}]) =>
       AppLocalizations.of(this).t(key, args);
-}
-
-class LocaleScope extends InheritedWidget {
-  const LocaleScope({
-    required this.locale,
-    required this.setLocale,
-    required super.child,
-    super.key,
-  });
-
-  final Locale locale;
-  final ValueChanged<Locale> setLocale;
-
-  static LocaleScope of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<LocaleScope>()!;
-
-  @override
-  bool updateShouldNotify(LocaleScope oldWidget) => locale != oldWidget.locale;
-}
-
-class LanguageMenu extends StatelessWidget {
-  const LanguageMenu({super.key});
-
-  @override
-  Widget build(BuildContext context) => PopupMenuButton<Locale>(
-    tooltip: context.t('language'),
-    icon: const Icon(Icons.language),
-    onSelected: LocaleScope.of(context).setLocale,
-    itemBuilder: (context) => [
-      PopupMenuItem(
-        value: const Locale('en'),
-        child: Text(context.t('english')),
-      ),
-      PopupMenuItem(
-        value: const Locale('zh'),
-        child: Text(context.t('chinese')),
-      ),
-    ],
-  );
 }

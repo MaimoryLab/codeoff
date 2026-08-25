@@ -247,10 +247,9 @@ void main() {
   });
 
   testWidgets('renders Chinese Material controls', (WidgetTester tester) async {
+    tester.binding.platformDispatcher.localeTestValue = const Locale('zh');
+    addTearDown(tester.binding.platformDispatcher.clearLocaleTestValue);
     await tester.pumpWidget(const CodexRemoteApp());
-    await tester.tap(find.byIcon(Icons.language));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('简体中文'));
     await tester.pumpAndSettle();
 
     expect(find.text('设置'), findsOneWidget);
