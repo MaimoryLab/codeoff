@@ -1,4 +1,4 @@
-part of 'remote_home_page.dart';
+part of '../home/remote_home_page.dart';
 
 DateTime? parseRemoteTimestamp(dynamic value) {
   if (value is num) return _unixTimestamp(value);

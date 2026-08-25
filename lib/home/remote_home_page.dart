@@ -13,18 +13,18 @@ import '../i18n.dart';
 import '../remote/remote_connection.dart';
 import '../storage/connection_store.dart';
 import '../storage/thread_cache.dart';
-import 'pairing_payload.dart';
+import '../connection/pairing_payload.dart';
 
-part 'thread_data.dart';
-part 'settings_view.dart';
-part 'thread_view.dart';
-part 'thread_messages.dart';
 part 'home_scaffold.dart';
-part 'pairing_scanner.dart';
-part 'connection_controller.dart';
-part 'remote_events.dart';
-part 'thread_controller.dart';
-part 'thread_session.dart';
+part '../connection/connection_controller.dart';
+part '../connection/connection_settings_view.dart';
+part '../connection/pairing_scanner.dart';
+part '../thread/thread_controller.dart';
+part '../thread/thread_data.dart';
+part '../thread/thread_events.dart';
+part '../thread/thread_session.dart';
+part '../thread/view/thread_messages.dart';
+part '../thread/view/thread_view.dart';
 
 class _DirectoryListing {
   const _DirectoryListing({

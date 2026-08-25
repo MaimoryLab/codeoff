@@ -1,4 +1,4 @@
-part of 'remote_home_page.dart';
+part of '../../home/remote_home_page.dart';
 
 extension _ThreadMessages on _RemoteHomePageState {
   Widget _threadMessages() {

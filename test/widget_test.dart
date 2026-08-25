@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:codex_remote/api.dart';
 import 'package:codex_remote/home/remote_home_page.dart'
     show startPeriodicRefresh;
-import 'package:codex_remote/home/pairing_payload.dart';
+import 'package:codex_remote/connection/pairing_payload.dart';
 import 'package:codex_remote/main.dart';
 import 'package:codex_remote/storage/connection_store.dart';
 

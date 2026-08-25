@@ -1,4 +1,4 @@
-part of 'remote_home_page.dart';
+part of '../../home/remote_home_page.dart';
 
 Uri? externalHttpUri(String? href) {
   final uri = Uri.tryParse(href ?? '');

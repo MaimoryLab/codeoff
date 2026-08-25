@@ -1,4 +1,4 @@
-part of 'remote_home_page.dart';
+part of '../home/remote_home_page.dart';
 
 class _PairingFailure implements Exception {
   const _PairingFailure(this.message);

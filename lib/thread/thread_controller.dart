@@ -1,6 +1,6 @@
 // ignore_for_file: invalid_use_of_protected_member
 
-part of 'remote_home_page.dart';
+part of '../home/remote_home_page.dart';
 
 extension _ThreadController on _RemoteHomePageState {
   Future<void> pickAttachments(FileType type) async {
