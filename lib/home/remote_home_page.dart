@@ -765,7 +765,6 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   }
 
   void _showThreads() {
-    Navigator.of(context).maybePop();
     _releaseSelectedThread();
     setState(() {
       settingsOpen = false;
