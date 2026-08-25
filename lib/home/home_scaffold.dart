@@ -3,6 +3,8 @@ part of 'remote_home_page.dart';
 extension _HomeScaffold on _RemoteHomePageState {
   Widget _homeScaffold(BuildContext context) {
     final detail = selectedThread != null;
+    final canPop =
+        !detail && !settingsOpen && !projectsView && selectedProject == null;
     final pendingConnection =
         connectionStatus == RemoteConnectionStatus.connecting ||
         connectionStatus == RemoteConnectionStatus.reconnecting;
@@ -13,60 +15,66 @@ extension _HomeScaffold on _RemoteHomePageState {
         : projectsView
         ? _projectsView()
         : _threadsView();
-    return Scaffold(
-      drawer: _drawer(context),
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        leading: Builder(
-          builder: (context) => IconButton(
-            tooltip: detail ? context.t('back') : context.t('menu'),
-            icon: Icon(detail ? Icons.arrow_back : Icons.menu),
-            onPressed: detail
-                ? _showThreads
-                : () => Scaffold.of(context).openDrawer(),
+    return PopScope(
+      canPop: canPop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !canPop) _showThreads();
+      },
+      child: Scaffold(
+        drawer: _drawer(context),
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          leading: Builder(
+            builder: (context) => IconButton(
+              tooltip: detail ? context.t('back') : context.t('menu'),
+              icon: Icon(detail ? Icons.arrow_back : Icons.menu),
+              onPressed: detail
+                  ? _showThreads
+                  : () => Scaffold.of(context).openDrawer(),
+            ),
           ),
+          title: settingsOpen
+              ? Text(context.t('settings'))
+              : detail
+              ? _threadAppBarTitle(selectedThread!)
+              : Text(
+                  projectsView
+                      ? context.t('projects')
+                      : selectedProject == null
+                      ? context.t('recent')
+                      : _projectLabel(selectedProject!),
+                ),
+          actions: [
+            Icon(
+              connected
+                  ? Icons.cloud_done
+                  : pendingConnection
+                  ? Icons.cloud_sync
+                  : Icons.cloud_off,
+              color: connected
+                  ? Colors.greenAccent
+                  : pendingConnection
+                  ? Colors.amberAccent
+                  : Colors.white38,
+              size: 20,
+            ),
+            const SizedBox(width: 16),
+          ],
         ),
-        title: settingsOpen
-            ? Text(context.t('settings'))
-            : detail
-            ? _threadAppBarTitle(selectedThread!)
-            : Text(
-                projectsView
-                    ? context.t('projects')
-                    : selectedProject == null
-                    ? context.t('recent')
-                    : _projectLabel(selectedProject!),
-              ),
-        actions: [
-          Icon(
-            connected
-                ? Icons.cloud_done
-                : pendingConnection
-                ? Icons.cloud_sync
-                : Icons.cloud_off,
-            color: connected
-                ? Colors.greenAccent
-                : pendingConnection
-                ? Colors.amberAccent
-                : Colors.white38,
-            size: 20,
-          ),
-          const SizedBox(width: 16),
-        ],
+        body: Column(
+          children: [
+            if (!connected) _connectionBanner(),
+            Expanded(child: content),
+          ],
+        ),
+        floatingActionButton: !settingsOpen && !detail && connected
+            ? FloatingActionButton(
+                onPressed: busy ? null : createThread,
+                tooltip: context.t('newThread'),
+                child: const Icon(Icons.add),
+              )
+            : null,
       ),
-      body: Column(
-        children: [
-          if (!connected) _connectionBanner(),
-          Expanded(child: content),
-        ],
-      ),
-      floatingActionButton: !settingsOpen && !detail && connected
-          ? FloatingActionButton(
-              onPressed: busy ? null : createThread,
-              tooltip: context.t('newThread'),
-              child: const Icon(Icons.add),
-            )
-          : null,
     );
   }
 
