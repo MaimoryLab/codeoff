@@ -18,6 +18,7 @@ extension _PairingScanner on _RemoteHomePageState {
     final connecting = context.t('connecting');
     final invalidPairingCode = context.t('invalidPairingCode');
     final noReachableAddress = context.t('noReachableAddress');
+    final serverNotPaired = context.t('serverNotPaired');
     final deviceName = _defaultDeviceName;
     await _run(connecting, () async {
       try {
@@ -25,6 +26,7 @@ extension _PairingScanner on _RemoteHomePageState {
           PairingPayload.parse(raw),
           deviceName: deviceName,
           noReachableAddress: noReachableAddress,
+          serverNotPaired: serverNotPaired,
         );
       } on FormatException {
         throw _PairingFailure(invalidPairingCode);
@@ -40,12 +42,14 @@ extension _PairingScanner on _RemoteHomePageState {
     PairingPayload payload, {
     required String deviceName,
     required String noReachableAddress,
+    required String serverNotPaired,
   }) async {
     final saved = connections.where(
       (record) => record['serverId'] == payload.serverUuid,
     );
     var token = saved.isEmpty ? '' : saved.first['token'] ?? '';
     if (token.isEmpty) {
+      if (payload.pairingCode.isEmpty) throw _PairingFailure(serverNotPaired);
       Object? lastError;
       for (final candidate in payload.endpoints) {
         final client = RemoteApi(candidate);

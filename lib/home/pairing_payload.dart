@@ -15,7 +15,7 @@ class PairingPayload {
     final pairingCode = '${value['pairingCode'] ?? ''}'.trim();
     final listenAddresses = value['listenAddresses'];
     final tunnelAddress = _httpEndpoint(value['tunnelAddress']);
-    if (serverUuid.isEmpty || pairingCode.isEmpty || listenAddresses is! List) {
+    if (serverUuid.isEmpty || listenAddresses is! List) {
       throw const FormatException('Invalid pairing payload');
     }
     final endpoints = listenAddresses

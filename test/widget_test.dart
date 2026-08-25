@@ -89,6 +89,19 @@ void main() {
     );
   });
 
+  test('accepts a connection QR code without a pairing code', () {
+    final payload = PairingPayload.parse(
+      jsonEncode({
+        'serverUuid': 'server-1',
+        'listenAddresses': ['http://192.168.1.2:11037'],
+        'tunnelAddress': '',
+      }),
+    );
+
+    expect(payload.pairingCode, isEmpty);
+    expect(payload.endpoints, ['http://192.168.1.2:11037']);
+  });
+
   test('finds the in-progress turn in a thread response', () {
     final response = {
       'thread': {
