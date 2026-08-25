@@ -20,7 +20,10 @@ extension _ThreadView on _RemoteHomePageState {
               children: [
                 SizedBox(
                   height: 240,
-                  child: _emptyState('No projects yet', Icons.folder_outlined),
+                  child: _emptyState(
+                    context.t('noProjectsYet'),
+                    Icons.folder_outlined,
+                  ),
                 ),
               ],
             )
@@ -56,11 +59,11 @@ extension _ThreadView on _RemoteHomePageState {
   );
 
   Widget _threadMenu(Map<String, dynamic> thread) => PopupMenuButton<String>(
-    tooltip: 'Thread actions',
+    tooltip: context.t('threadActions'),
     onSelected: (action) => _threadAction(thread, action),
-    itemBuilder: (context) => const [
-      PopupMenuItem(value: 'rename', child: Text('Rename')),
-      PopupMenuItem(value: 'archive', child: Text('Archive')),
+    itemBuilder: (context) => [
+      PopupMenuItem(value: 'rename', child: Text(context.t('rename'))),
+      PopupMenuItem(value: 'archive', child: Text(context.t('archive'))),
     ],
   );
 
@@ -81,7 +84,7 @@ extension _ThreadView on _RemoteHomePageState {
     final renamed = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Rename thread'),
+        title: Text(context.t('renameThread')),
         content: TextFormField(
           initialValue: initialName,
           autofocus: true,
@@ -92,18 +95,18 @@ extension _ThreadView on _RemoteHomePageState {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(context.t('cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, name.trim()),
-            child: const Text('Save'),
+            child: Text(context.t('save')),
           ),
         ],
       ),
     );
     if (!mounted || renamed == null || renamed.isEmpty) return;
     final id = _threadId(thread);
-    await _run('Renaming...', () async {
+    await _run(context.t('renaming'), () async {
       await api!.renameThread(id, renamed);
       _setThreadName(thread, renamed);
     });
@@ -113,23 +116,25 @@ extension _ThreadView on _RemoteHomePageState {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Archive thread?'),
-        content: Text('"${_threadTitle(thread)}" will be removed from Recent.'),
+        title: Text(context.t('archiveThreadQuestion')),
+        content: Text(
+          context.t('archiveThreadContent', {'name': _threadTitle(thread)}),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.t('cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Archive'),
+            child: Text(context.t('archive')),
           ),
         ],
       ),
     );
     if (!mounted || confirmed != true) return;
     final id = _threadId(thread);
-    await _run('Archiving...', () async {
+    await _run(context.t('archiving'), () async {
       await api!.archiveThread(id);
       if (selectedThread == id) _showThreads();
       await _reloadThreads();
@@ -163,7 +168,7 @@ extension _ThreadView on _RemoteHomePageState {
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
         const SizedBox(width: 6),
-        const Text('Working'),
+        Text(context.t('working')),
         const SizedBox(width: 10),
       ],
       Expanded(child: Text(_timeLabel(remoteThreadDate(thread)))),
@@ -198,7 +203,7 @@ extension _ThreadView on _RemoteHomePageState {
                     child: FilledButton.tonalIcon(
                       onPressed: busy ? null : _takeOverThread,
                       icon: const Icon(Icons.lock_open),
-                      label: const Text('Take over'),
+                      label: Text(context.t('takeOver')),
                     ),
                   ),
                 ),
@@ -239,7 +244,7 @@ extension _ThreadView on _RemoteHomePageState {
                 children: [
                   PopupMenuButton<RemotePermissionMode>(
                     enabled: !busy && _canEditThread,
-                    tooltip: permissionMode.label,
+                    tooltip: _permissionLabel(permissionMode),
                     icon: Icon(_permissionIcon(permissionMode)),
                     onSelected: setPermissionMode,
                     itemBuilder: (context) => [
@@ -249,7 +254,7 @@ extension _ThreadView on _RemoteHomePageState {
                           child: ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: Icon(_permissionIcon(mode)),
-                            title: Text(mode.label),
+                            title: Text(_permissionLabel(mode)),
                             trailing: mode == permissionMode
                                 ? const Icon(Icons.check)
                                 : null,
@@ -259,16 +264,16 @@ extension _ThreadView on _RemoteHomePageState {
                   ),
                   PopupMenuButton<FileType>(
                     enabled: !busy && _canEditThread,
-                    tooltip: 'Attach file or image',
+                    tooltip: context.t('attachFileOrImage'),
                     icon: const Icon(Icons.attach_file),
                     onSelected: pickAttachments,
-                    itemBuilder: (context) => const [
+                    itemBuilder: (context) => [
                       PopupMenuItem(
                         value: FileType.image,
                         child: ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: Icon(Icons.image_outlined),
-                          title: Text('Choose images'),
+                          title: Text(context.t('chooseImages')),
                         ),
                       ),
                       PopupMenuItem(
@@ -276,7 +281,7 @@ extension _ThreadView on _RemoteHomePageState {
                         child: ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: Icon(Icons.insert_drive_file_outlined),
-                          title: Text('Choose files'),
+                          title: Text(context.t('chooseFiles')),
                         ),
                       ),
                     ],
@@ -289,12 +294,12 @@ extension _ThreadView on _RemoteHomePageState {
                       maxLines: 5,
                       decoration: InputDecoration(
                         hintText: threadClaiming
-                            ? 'Checking access...'
+                            ? context.t('checkingAccess')
                             : _canEditThread
-                            ? 'Message'
+                            ? context.t('message')
                             : threadConflict
-                            ? 'Active in another app'
-                            : 'Unable to send',
+                            ? context.t('activeInAnotherApp')
+                            : context.t('unableToSend'),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 13,
@@ -305,7 +310,7 @@ extension _ThreadView on _RemoteHomePageState {
                   const SizedBox(width: 8),
                   IconButton.filled(
                     onPressed: busy || !_canEditThread ? null : sendTurn,
-                    tooltip: 'Send',
+                    tooltip: context.t('send'),
                     icon: const Icon(Icons.send),
                   ),
                 ],
@@ -332,10 +337,7 @@ extension _ThreadView on _RemoteHomePageState {
     if (history.isEmpty &&
         processingSummary.isEmpty &&
         pendingApprovals.isEmpty) {
-      return _emptyState(
-        'No messages in this thread',
-        Icons.chat_bubble_outline,
-      );
+      return _emptyState(context.t('noMessages'), Icons.chat_bubble_outline);
     }
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
@@ -362,6 +364,12 @@ extension _ThreadView on _RemoteHomePageState {
     RemotePermissionMode.requestApproval => Icons.shield_outlined,
     RemotePermissionMode.autoApprove => Icons.verified_user_outlined,
     RemotePermissionMode.fullAccess => Icons.warning_amber,
+  };
+
+  String _permissionLabel(RemotePermissionMode mode) => switch (mode) {
+    RemotePermissionMode.requestApproval => context.t('askForApproval'),
+    RemotePermissionMode.autoApprove => context.t('approveForMe'),
+    RemotePermissionMode.fullAccess => context.t('fullAccess'),
   };
 
   Widget _messageBubble(Map<String, dynamic> item) {
@@ -400,7 +408,7 @@ extension _ThreadView on _RemoteHomePageState {
   }
 
   Widget _approvalMessage(Map<String, dynamic> event) {
-    final details = approvalDetailsFrom(event);
+    final details = approvalDetailsFrom(event, AppLocalizations.of(context));
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
@@ -420,13 +428,16 @@ extension _ThreadView on _RemoteHomePageState {
                 const Icon(Icons.shield_outlined, size: 19),
                 const SizedBox(width: 8),
                 Text(
-                  '${details.kind} approval',
+                  context.t('approvalSuffix', {'kind': details.kind}),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            const Text('Reason', style: TextStyle(color: Colors.white60)),
+            Text(
+              context.t('reason'),
+              style: const TextStyle(color: Colors.white60),
+            ),
             SelectableText(details.reason),
             const SizedBox(height: 10),
             Text(details.kind, style: const TextStyle(color: Colors.white60)),
@@ -441,13 +452,13 @@ extension _ThreadView on _RemoteHomePageState {
                 OutlinedButton.icon(
                   onPressed: busy ? null : () => answer(event, 'decline'),
                   icon: const Icon(Icons.close),
-                  label: const Text('Deny'),
+                  label: Text(context.t('deny')),
                 ),
                 const SizedBox(width: 8),
                 FilledButton.icon(
                   onPressed: busy ? null : () => answer(event, 'accept'),
                   icon: const Icon(Icons.check),
-                  label: const Text('Allow'),
+                  label: Text(context.t('allow')),
                 ),
               ],
             ),

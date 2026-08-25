@@ -53,15 +53,15 @@ String activeTurnIdFrom(dynamic value) {
 bool _isInProgress(dynamic status) =>
     status == 'inProgress' || status == 'in_progress';
 
-String processingSummaryFromThread(dynamic value) {
+String processingSummaryFromThread(dynamic value, [AppLocalizations? l10n]) {
   if (value is! Map) return '';
   if (value['thread'] != null) {
-    return processingSummaryFromThread(value['thread']);
+    return processingSummaryFromThread(value['thread'], l10n);
   }
   final turns = value['turns'];
   if (turns is List) {
     for (final turn in turns.reversed) {
-      if (turn is Map) return processingSummaryFromThread(turn);
+      if (turn is Map) return processingSummaryFromThread(turn, l10n);
     }
     return '';
   }
@@ -70,7 +70,9 @@ String processingSummaryFromThread(dynamic value) {
       _isInProgress(value['status']) ||
       items is List &&
           items.whereType<Map>().any((item) => _isInProgress(item['status']));
-  if (!active || items is! List) return active ? 'Working...' : '';
+  if (!active || items is! List) {
+    return active ? l10n?.t('working') ?? 'Working...' : '';
+  }
   for (final raw in items.reversed) {
     if (raw is! Map) continue;
     final item = Map<String, dynamic>.from(raw);
@@ -79,42 +81,52 @@ String processingSummaryFromThread(dynamic value) {
           .map((part) => '$part'.trim())
           .where((part) => part.isNotEmpty)
           .join(' ');
-      if (summary.isNotEmpty) return 'Thinking: $summary';
+      if (summary.isNotEmpty) {
+        return l10n?.t('thinking', {'text': summary}) ?? 'Thinking: $summary';
+      }
     }
-    final summary = processingSummaryFromItem(item);
+    final summary = processingSummaryFromItem(item, l10n);
     if (summary.isNotEmpty) {
       return item['status'] == null || _isInProgress(item['status'])
           ? summary
-          : 'Working...';
+          : l10n?.t('working') ?? 'Working...';
     }
-    if (item['type'] == 'agentMessage') return 'Working...';
+    if (item['type'] == 'agentMessage') {
+      return l10n?.t('working') ?? 'Working...';
+    }
   }
-  return 'Working...';
+  return l10n?.t('working') ?? 'Working...';
 }
 
-String processingSummaryFromItem(dynamic value) {
+String processingSummaryFromItem(dynamic value, [AppLocalizations? l10n]) {
   if (value is! Map) return '';
   final type = '${value['type'] ?? ''}';
   switch (type) {
     case 'commandExecution':
       final command = '${value['command'] ?? ''}'.trim();
-      return command.isEmpty ? 'Running a command' : 'Running: $command';
+      return command.isEmpty
+          ? l10n?.t('runningCommand') ?? 'Running a command'
+          : l10n?.t('running', {'name': command}) ?? 'Running: $command';
     case 'mcpToolCall':
       final server = '${value['server'] ?? ''}'.trim();
       final tool = '${value['tool'] ?? ''}'.trim();
       final name = [server, tool].where((part) => part.isNotEmpty).join('/');
-      return name.isEmpty ? 'Calling a tool' : 'Calling: $name';
+      return name.isEmpty
+          ? l10n?.t('callingTool') ?? 'Calling a tool'
+          : l10n?.t('calling', {'name': name}) ?? 'Calling: $name';
     case 'dynamicToolCall':
       final namespace = '${value['namespace'] ?? ''}'.trim();
       final tool = '${value['tool'] ?? ''}'.trim();
       final name = [namespace, tool].where((part) => part.isNotEmpty).join('/');
-      return name.isEmpty ? 'Calling a tool' : 'Calling: $name';
+      return name.isEmpty
+          ? l10n?.t('callingTool') ?? 'Calling a tool'
+          : l10n?.t('calling', {'name': name}) ?? 'Calling: $name';
     case 'webSearch':
-      return 'Searching the web';
+      return l10n?.t('searchingWeb') ?? 'Searching the web';
     case 'fileChange':
-      return 'Applying file changes';
+      return l10n?.t('applyingFileChanges') ?? 'Applying file changes';
     case 'collabAgentToolCall':
-      return 'Running an agent task';
+      return l10n?.t('runningAgentTask') ?? 'Running an agent task';
     default:
       return '';
   }
@@ -127,22 +139,23 @@ String approvalThreadIdFrom(Map<String, dynamic> event) {
 }
 
 ({String kind, String reason, String target}) approvalDetailsFrom(
-  Map<String, dynamic> event,
-) {
+  Map<String, dynamic> event, [
+  AppLocalizations? l10n,
+]) {
   final method = '${event['method'] ?? ''}';
   final lowerMethod = method.toLowerCase();
   final params = event['params'] is Map
       ? Map<String, dynamic>.from(event['params'] as Map)
       : <String, dynamic>{};
   final kind = lowerMethod.contains('command')
-      ? 'Command'
+      ? l10n?.t('command') ?? 'Command'
       : lowerMethod.contains('file') || lowerMethod.contains('patch')
-      ? 'File changes'
+      ? l10n?.t('fileChanges') ?? 'File changes'
       : lowerMethod.contains('permission')
-      ? 'Permissions'
+      ? l10n?.t('permissions') ?? 'Permissions'
       : lowerMethod.contains('tool')
-      ? 'Tool'
-      : 'Approval';
+      ? l10n?.t('tool') ?? 'Tool'
+      : l10n?.t('approval') ?? 'Approval';
   final tool = [
     params['server'] ?? params['namespace'],
     params['tool'] ?? params['name'],
@@ -156,7 +169,9 @@ String approvalThreadIdFrom(Map<String, dynamic> event) {
   final reason = _approvalValue(params['reason']);
   return (
     kind: kind,
-    reason: reason.isEmpty ? 'Codex needs your approval to continue.' : reason,
+    reason: reason.isEmpty
+        ? l10n?.t('approvalReason') ?? 'Codex needs your approval to continue.'
+        : reason,
     target: target,
   );
 }
@@ -205,7 +220,7 @@ extension _ThreadData on _RemoteHomePageState {
       final found = threads.where((item) => _threadId(item) == thread);
       return found.isEmpty ? thread : _threadTitle(found.first);
     }
-    if (thread is! Map) return 'Thread';
+    if (thread is! Map) return context.t('thread');
     for (final key in ['name', 'sessionName', 'title', 'preview']) {
       final value = thread[key]?.toString().trim() ?? '';
       if (value.isNotEmpty) return value;

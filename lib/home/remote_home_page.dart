@@ -9,6 +9,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
+import '../i18n.dart';
 
 part 'thread_data.dart';
 part 'settings_view.dart';
@@ -146,7 +147,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   }
 
   Future<void> connect() async {
-    await _run('Connecting...', () async {
+    await _run(context.t('connecting'), () async {
       final endpointValue = endpoint.text.trim();
       if (endpointValue.isEmpty) throw ApiException('Endpoint is required');
       var token = accessToken.text.trim();
@@ -215,9 +216,12 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     _listenEvents(client);
     connectionStatus = RemoteConnectionStatus.online;
     await _reloadThreads();
-    settingsOpen = false;
-    message = 'Connected';
-    _toast('Connected to ${record['name']}');
+    if (!mounted) return;
+    setState(() {
+      settingsOpen = false;
+      message = context.t('connected');
+    });
+    _toast(context.t('connectedTo', {'name': record['name'] ?? ''}));
   }
 
   Future<Map<String, dynamic>?> _pairDialog() {
@@ -226,26 +230,26 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     final dialog = showDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Pair this device'),
+        title: Text(context.t('pairThisDevice')),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: token,
               autofocus: true,
-              decoration: const InputDecoration(labelText: 'Pairing code'),
+              decoration: InputDecoration(labelText: context.t('pairingCode')),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: name,
-              decoration: const InputDecoration(labelText: 'Device name'),
+              decoration: InputDecoration(labelText: context.t('deviceName')),
             ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(context.t('cancel')),
           ),
           FilledButton(
             onPressed: () {
@@ -255,7 +259,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
                 'name': name.text.trim(),
               });
             },
-            child: const Text('Pair'),
+            child: Text(context.t('pair')),
           ),
         ],
       ),
@@ -290,7 +294,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         if (id is int && method.contains('Approval')) {
           setState(() {
             approvals = [...approvals.where((item) => item['id'] != id), event];
-            message = 'Approval requested';
+            message = context.t('approvalRequested');
           });
         }
         final params = event['params'] is Map
@@ -333,13 +337,16 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         if (method == 'turn/started' && threadId == selectedThread) {
           setState(() {
             activeTurnId = activeTurnIdFrom(params);
-            processingSummary = 'Working...';
+            processingSummary = context.t('working');
             processingItemId = '';
           });
         }
         if (method == 'item/started' && threadId == selectedThread) {
           final item = params['item'];
-          final summary = processingSummaryFromItem(item);
+          final summary = processingSummaryFromItem(
+            item,
+            AppLocalizations.of(context),
+          );
           if (summary.isNotEmpty) {
             setState(() {
               processingSummary = summary;
@@ -355,7 +362,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             setState(() {
               processingSummary = processingItemId == itemId
                   ? '$processingSummary$delta'
-                  : 'Thinking: $delta';
+                  : context.t('thinking', {'text': delta});
               processingItemId = itemId;
             });
           }
@@ -364,7 +371,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           final itemId =
               '${params['item'] is Map ? params['item']['id'] ?? '' : ''}';
           if (itemId == processingItemId) {
-            setState(() => processingSummary = 'Working...');
+            setState(() => processingSummary = context.t('working'));
           }
         }
         if (method == 'turn/completed' && threadId == selectedThread) {
@@ -447,7 +454,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   }
 
   Future<void> createThread() async {
-    await _run('Starting thread...', () async {
+    await _run(context.t('startingThread'), () async {
       final cwd = await _selectDirectory();
       if (cwd == null) return;
       final value = await api!.startThread(cwd: cwd);
@@ -487,7 +494,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           }
 
           return AlertDialog(
-            title: const Text('Choose startup folder'),
+            title: Text(context.t('chooseStartupFolder')),
             content: SizedBox(
               width: double.maxFinite,
               height: 360,
@@ -497,7 +504,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
                   Row(
                     children: [
                       IconButton(
-                        tooltip: 'Parent folder',
+                        tooltip: context.t('parentFolder'),
                         onPressed: loading || listing.parent.isEmpty
                             ? null
                             : () => openDirectory(listing.parent),
@@ -524,7 +531,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
                     child: loading
                         ? const Center(child: CircularProgressIndicator())
                         : listing.directories.isEmpty
-                        ? const Center(child: Text('No subfolders'))
+                        ? Center(child: Text(context.t('noSubfolders')))
                         : ListView.builder(
                             itemCount: listing.directories.length,
                             itemBuilder: (context, index) {
@@ -544,13 +551,13 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
             actions: [
               TextButton(
                 onPressed: loading ? null : () => Navigator.pop(dialogContext),
-                child: const Text('Cancel'),
+                child: Text(context.t('cancel')),
               ),
               FilledButton(
                 onPressed: loading || listing.path.isEmpty
                     ? null
                     : () => Navigator.pop(dialogContext, listing.path),
-                child: const Text('Use folder'),
+                child: Text(context.t('useFolder')),
               ),
             ],
           );
@@ -570,7 +577,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     if (id == null || !threadOwned || (text.isEmpty && attachments.isEmpty)) {
       return;
     }
-    await _run('Sending...', () async {
+    await _run(context.t('sending'), () async {
       if (!mounted || selectedThread != id) return;
       final thread = threads.firstWhere(
         (item) => _threadId(item) == id,
@@ -620,7 +627,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           {'role': 'user', 'content': text},
         ];
         if (responseTurnId.isNotEmpty) activeTurnId = responseTurnId;
-        message = active ? 'Message sent' : 'Turn started';
+        message = active ? context.t('messageSent') : context.t('turnStarted');
       });
     });
   }
@@ -647,7 +654,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
   Future<void> answer(Map<String, dynamic> event, String decision) async {
     final id = event['id'];
     if (id is! int) return;
-    await _run('Sending decision...', () async {
+    await _run(context.t('sendingDecision'), () async {
       await api!.approve(id, decision);
       if (mounted) {
         setState(() => approvals.removeWhere((item) => item['id'] == id));
@@ -664,7 +671,10 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     try {
       final value = await api!.thread(id);
       if (!mounted || selectedThread != id) return;
-      final snapshotSummary = processingSummaryFromThread(value);
+      final snapshotSummary = processingSummaryFromThread(
+        value,
+        AppLocalizations.of(context),
+      );
       setState(() {
         history = _historyItems(value);
         activeTurnId = activeTurnIdFrom(value);
@@ -675,7 +685,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           processingSummary = '';
           processingItemId = '';
         } else if (processingSummary.isEmpty) {
-          processingSummary = 'Working...';
+          processingSummary = context.t('working');
         }
         loadedHistoryFor = id;
       });
@@ -785,7 +795,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         threadOwned = false;
         threadConflict = conflict;
         message = conflict
-            ? 'Active in another app. This thread is read-only.'
+            ? context.t('activeThreadReadOnly')
             : error.toString();
       });
       if (conflict) {
@@ -832,24 +842,22 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Take over this thread?'),
-        content: const Text(
-          'This closes the desktop app using this thread. Other active threads in that app will also stop.',
-        ),
+        title: Text(context.t('takeOverThreadQuestion')),
+        content: Text(context.t('takeOverDescription')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.t('cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Take over'),
+            child: Text(context.t('takeOver')),
           ),
         ],
       ),
     );
     if (!mounted || confirmed != true || selectedThread != id) return;
-    await _run('Taking over...', () async {
+    await _run(context.t('takingOver'), () async {
       await api!.takeOverThread(id);
       if (!mounted || selectedThread != id) {
         await _releaseThread(id);
@@ -858,7 +866,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       setState(() {
         threadOwned = true;
         threadConflict = false;
-        message = 'Thread taken over';
+        message = context.t('threadTakenOver');
       });
       _stopHistoryRefresh();
       await _loadHistory(id, force: true);
@@ -902,7 +910,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
         setState(() {
           if (disconnected && client == null) {
             connectionStatus = RemoteConnectionStatus.offline;
-            message = 'Disconnected: $error';
+            message = context.t('disconnected', {'error': '$error'});
           } else if (!disconnected) {
             message = error.toString();
           }
@@ -964,7 +972,7 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     if (!mounted || !identical(api, client)) return;
     setState(() {
       connectionStatus = RemoteConnectionStatus.reconnecting;
-      message = 'Connection lost. Reconnecting...';
+      message = context.t('connectionLost');
     });
     try {
       await client.reconnect();
@@ -973,14 +981,14 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       if (eventSubscription == null) _listenEvents(client);
       setState(() {
         connectionStatus = RemoteConnectionStatus.online;
-        message = 'Connected';
+        message = context.t('connected');
       });
       await _reloadThreads();
     } catch (error) {
       if (!mounted || !identical(api, client)) return;
       setState(() {
         connectionStatus = RemoteConnectionStatus.offline;
-        message = 'Disconnected: $error';
+        message = context.t('disconnected', {'error': '$error'});
       });
     }
   }
@@ -996,20 +1004,20 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
     final changed = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Edit connection'),
+        title: Text(context.t('edit')),
         content: TextField(
           controller: name,
           autofocus: true,
-          decoration: const InputDecoration(labelText: 'Name'),
+          decoration: InputDecoration(labelText: context.t('name')),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(context.t('cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, name.text.trim()),
-            child: const Text('Save'),
+            child: Text(context.t('save')),
           ),
         ],
       ),
@@ -1035,7 +1043,8 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
       accessToken.clear();
     }
     await _saveConnection();
-    _toast('Connection removed');
+    if (!mounted) return;
+    _toast(context.t('connectionRemoved'));
   }
 
   @override
@@ -1050,9 +1059,9 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
           child: TextField(
             controller: search,
             onChanged: (_) => setState(() {}),
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Search threads',
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              hintText: context.t('searchThreads'),
             ),
           ),
         ),
@@ -1068,8 +1077,8 @@ class _RemoteHomePageState extends State<RemoteHomePage> {
                         height: 240,
                         child: _emptyState(
                           connected
-                              ? 'No threads yet'
-                              : 'Connect from Settings to begin',
+                              ? context.t('noThreadsYet')
+                              : context.t('connectFromSettings'),
                           Icons.forum_outlined,
                         ),
                       ),

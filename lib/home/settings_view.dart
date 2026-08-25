@@ -11,11 +11,11 @@ extension _SettingsView on _RemoteHomePageState {
           style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
         ),
       ),
-      _settingsSection('Connect to a desktop', [
+      _settingsSection(context.t('connectToDesktop'), [
         TextField(
           controller: endpoint,
-          decoration: const InputDecoration(
-            labelText: 'Desktop endpoint',
+          decoration: InputDecoration(
+            labelText: context.t('desktopEndpoint'),
             hintText: 'https://...trycloudflare.com',
           ),
           keyboardType: TextInputType.url,
@@ -26,14 +26,14 @@ extension _SettingsView on _RemoteHomePageState {
           child: FilledButton.icon(
             onPressed: busy ? null : connect,
             icon: const Icon(Icons.login),
-            label: const Text('Connect'),
+            label: Text(context.t('connect')),
           ),
         ),
       ]),
-      _settingsSection('Connection history', [
+      _settingsSection(context.t('connectionHistory'), [
         if (connections.isEmpty)
-          const Text(
-            'No saved connections',
+          Text(
+            context.t('noSavedConnections'),
             style: TextStyle(color: Colors.white54),
           )
         else
@@ -54,17 +54,17 @@ extension _SettingsView on _RemoteHomePageState {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          tooltip: 'Connect',
+          tooltip: context.t('connect'),
           onPressed: busy ? null : () => _connectSaved(record),
           icon: const Icon(Icons.login),
         ),
         IconButton(
-          tooltip: 'Edit',
+          tooltip: context.t('edit'),
           onPressed: busy ? null : () => _editConnection(record),
           icon: const Icon(Icons.edit_outlined),
         ),
         IconButton(
-          tooltip: 'Delete',
+          tooltip: context.t('delete'),
           onPressed: busy ? null : () => _deleteConnection(record),
           icon: const Icon(Icons.delete_outline),
         ),

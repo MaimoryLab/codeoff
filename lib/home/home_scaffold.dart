@@ -19,7 +19,7 @@ extension _HomeScaffold on _RemoteHomePageState {
         automaticallyImplyLeading: false,
         leading: Builder(
           builder: (context) => IconButton(
-            tooltip: detail ? 'Back' : 'Menu',
+            tooltip: detail ? context.t('back') : context.t('menu'),
             icon: Icon(detail ? Icons.arrow_back : Icons.menu),
             onPressed: detail
                 ? _showThreads
@@ -27,17 +27,19 @@ extension _HomeScaffold on _RemoteHomePageState {
           ),
         ),
         title: settingsOpen
-            ? const Text('Settings')
+            ? Text(context.t('settings'))
             : detail
             ? _threadAppBarTitle(selectedThread!)
             : Text(
                 projectsView
-                    ? 'Projects'
+                    ? context.t('projects')
                     : selectedProject == null
-                    ? 'Recent'
+                    ? context.t('recent')
                     : _projectLabel(selectedProject!),
               ),
         actions: [
+          const LanguageMenu(),
+          const SizedBox(width: 4),
           Icon(
             connected
                 ? Icons.cloud_done
@@ -63,7 +65,7 @@ extension _HomeScaffold on _RemoteHomePageState {
       floatingActionButton: !settingsOpen && !detail && connected
           ? FloatingActionButton(
               onPressed: busy ? null : createThread,
-              tooltip: 'New thread',
+              tooltip: context.t('newThread'),
               child: const Icon(Icons.add),
             )
           : null,
@@ -92,10 +94,10 @@ extension _HomeScaffold on _RemoteHomePageState {
               Expanded(
                 child: Text(
                   connecting
-                      ? 'Connecting...'
+                      ? context.t('connecting')
                       : pending
-                      ? 'Reconnecting...'
-                      : 'Offline',
+                      ? context.t('reconnecting')
+                      : context.t('offline'),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
@@ -103,7 +105,7 @@ extension _HomeScaffold on _RemoteHomePageState {
                 FilledButton.icon(
                   onPressed: canReconnect ? reconnect : null,
                   icon: const Icon(Icons.refresh),
-                  label: const Text('Reconnect'),
+                  label: Text(context.t('reconnect')),
                 ),
             ],
           ),
@@ -134,7 +136,7 @@ extension _HomeScaffold on _RemoteHomePageState {
               ],
             ),
           ),
-          _drawerItem(Icons.add, 'New', false, () {
+          _drawerItem(Icons.add, context.t('new'), false, () {
             Navigator.pop(context);
             if (!busy) createThread();
           }),
@@ -146,31 +148,31 @@ extension _HomeScaffold on _RemoteHomePageState {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 children: [
-                  _drawerLabel('Recent'),
+                  _drawerLabel(context.t('recent')),
                   for (final thread in threads.take(5))
                     _recentEntry(context, thread),
                   if (threads.length > 5)
-                    _moreEntry('More recent chats', _showRecent),
+                    _moreEntry(context.t('moreRecentChats'), _showRecent),
                   if (threads.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                       child: Text(
-                        'No recent chats',
-                        style: TextStyle(color: Colors.white38),
+                        context.t('noRecentChats'),
+                        style: const TextStyle(color: Colors.white38),
                       ),
                     ),
                   const Divider(height: 24),
-                  _drawerLabel('Projects'),
+                  _drawerLabel(context.t('projects')),
                   for (final project in _projects().take(5))
                     _projectEntry(context, project),
                   if (_projects().length > 5)
-                    _moreEntry('More projects', _showProjects),
+                    _moreEntry(context.t('moreProjects'), _showProjects),
                   if (_projects().isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                       child: Text(
-                        'No projects',
-                        style: TextStyle(color: Colors.white38),
+                        context.t('noProjects'),
+                        style: const TextStyle(color: Colors.white38),
                       ),
                     ),
                 ],
@@ -180,7 +182,7 @@ extension _HomeScaffold on _RemoteHomePageState {
           const Divider(height: 1),
           _drawerItem(
             Icons.settings_outlined,
-            'Settings',
+            context.t('settings'),
             settingsOpen,
             _openSettings,
           ),
