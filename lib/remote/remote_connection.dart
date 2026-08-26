@@ -7,11 +7,13 @@ enum RemoteConnectionStatus { offline, connecting, reconnecting, online }
 typedef RemoteApiFactory = RemoteApi Function(String endpoint, String token);
 
 class RemoteConnection {
-  RemoteConnection({RemoteApiFactory? createClient})
+  RemoteConnection(this.clientVersion, {RemoteApiFactory? createClient})
     : _createClient =
           createClient ??
-          ((endpoint, token) => RemoteApi(endpoint, token: token));
+          ((endpoint, token) =>
+              RemoteApi(endpoint, clientVersion: clientVersion, token: token));
 
+  final String clientVersion;
   final RemoteApiFactory _createClient;
   final _events = StreamController<Map<String, dynamic>>.broadcast();
   final _statuses = StreamController<RemoteConnectionStatus>.broadcast();

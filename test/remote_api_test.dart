@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:codeoff/api.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+const _testVersion = '1.1.0';
+
 void main() {
   test('streams uploads over authenticated HTTP with progress', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -28,6 +30,7 @@ void main() {
     });
     final api = RemoteApi(
       'http://${server.address.address}:${server.port}',
+      clientVersion: _testVersion,
       token: 'secret',
     );
     addTearDown(api.close);
@@ -49,14 +52,13 @@ void main() {
     expect(uploaded.path, '/tmp/uploaded.txt');
   });
 
-  test(
-    'exchanges compatible versions during the WebSocket handshake',
-    () async {
+  for (final serverVersion in [minServerVersion, 'dev']) {
+    test('accepts compatible server version $serverVersion', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
         request.response.headers
-          ..set('X-Codeoff-Server-Version', minServerVersion)
-          ..set('X-Codeoff-Min-Client-Version', clientVersion);
+          ..set('X-Codeoff-Server-Version', serverVersion)
+          ..set('X-Codeoff-Min-Client-Version', _testVersion);
         final socket = await WebSocketTransformer.upgrade(request);
         socket.listen((data) {
           final message = jsonDecode('$data') as Map<String, dynamic>;
@@ -64,15 +66,18 @@ void main() {
         });
       });
       addTearDown(() => server.close(force: true));
-      final api = RemoteApi('http://${server.address.address}:${server.port}');
+      final api = RemoteApi(
+        'http://${server.address.address}:${server.port}',
+        clientVersion: _testVersion,
+      );
       addTearDown(api.close);
 
       await api.status();
-    },
-  );
+    });
+  }
 
   for (final versions in <(String?, String?)>[
-    ('0.0.9', clientVersion),
+    ('0.0.9', _testVersion),
     (minServerVersion, '2.0.0'),
     (null, null),
   ]) {
@@ -80,7 +85,10 @@ void main() {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
         if (versions.$1 != null) {
-          request.response.headers.set('X-Codeoff-Server-Version', versions.$1!);
+          request.response.headers.set(
+            'X-Codeoff-Server-Version',
+            versions.$1!,
+          );
         }
         if (versions.$2 != null) {
           request.response.headers.set(
@@ -92,7 +100,10 @@ void main() {
         socket.listen((_) {});
       });
       addTearDown(() => server.close(force: true));
-      final api = RemoteApi('http://${server.address.address}:${server.port}');
+      final api = RemoteApi(
+        'http://${server.address.address}:${server.port}',
+        clientVersion: _testVersion,
+      );
       addTearDown(api.close);
 
       await expectLater(

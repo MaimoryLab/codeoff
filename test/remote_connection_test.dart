@@ -8,7 +8,10 @@ import 'package:codeoff/remote/remote_connection.dart';
 void main() {
   test('owns connection status, events, and reconnects', () async {
     final client = _FakeRemoteApi();
-    final connection = RemoteConnection(createClient: (_, _) => client);
+    final connection = RemoteConnection(
+      '1.1.0',
+      createClient: (_, _) => client,
+    );
     final statuses = <RemoteConnectionStatus>[];
     final events = <Map<String, dynamic>>[];
     final statusSubscription = connection.statuses.listen(statuses.add);
@@ -47,7 +50,7 @@ void main() {
 }
 
 class _FakeRemoteApi extends RemoteApi {
-  _FakeRemoteApi() : super('http://localhost');
+  _FakeRemoteApi() : super('http://localhost', clientVersion: '1.1.0');
 
   final controller = StreamController<Map<String, dynamic>>.broadcast();
   int reconnectCount = 0;

@@ -66,7 +66,7 @@ extension _PairingScanner on _RemoteHomePageState {
             ? _tunnelRetryCount
             : 1;
         for (var attempt = 0; attempt < attempts; attempt++) {
-          final client = RemoteApi(candidate);
+          final client = RemoteApi(candidate, clientVersion: widget.version);
           try {
             final value = await client.pair(payload.pairingCode, deviceName);
             final server = _serverFrom(value);
@@ -128,7 +128,11 @@ extension _PairingScanner on _RemoteHomePageState {
           ? _tunnelRetryCount
           : 1;
       for (var attempt = 0; attempt < attempts; attempt++) {
-        final client = RemoteApi(candidate, token: token);
+        final client = RemoteApi(
+          candidate,
+          clientVersion: widget.version,
+          token: token,
+        );
         try {
           final status = await client.status();
           if ('${_serverFrom(status)['id'] ?? ''}' == serverUuid) {

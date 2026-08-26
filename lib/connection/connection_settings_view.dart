@@ -50,21 +50,14 @@ extension _SettingsView on _RemoteHomePageState {
       ]),
       if (Platform.isAndroid)
         _settingsSection(context.t('about'), [
-          FutureBuilder(
-            future: packageInfo,
-            builder: (context, snapshot) => ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Codeoff'),
-              subtitle: snapshot.hasData
-                  ? Text(
-                      context.t('version', {'version': snapshot.data!.version}),
-                    )
-                  : null,
-              trailing: FilledButton.icon(
-                onPressed: busy ? null : checkForUpdate,
-                icon: const Icon(Icons.system_update_alt),
-                label: Text(context.t('checkForUpdates')),
-              ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Codeoff'),
+            subtitle: Text(context.t('version', {'version': widget.version})),
+            trailing: FilledButton.icon(
+              onPressed: busy ? null : checkForUpdate,
+              icon: const Icon(Icons.system_update_alt),
+              label: Text(context.t('checkForUpdates')),
             ),
           ),
         ]),

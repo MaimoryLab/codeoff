@@ -61,7 +61,7 @@ Future<AppRelease> fetchLatestGitHubRelease() async {
 extension _AppUpdate on _RemoteHomePageState {
   Future<void> checkForUpdate({bool silent = false}) async {
     Future<void> check() async {
-      final currentVersion = (await packageInfo).version;
+      final currentVersion = widget.version;
       final release = await fetchLatestGitHubRelease();
       if (!mounted) return;
       if (compareRemoteVersions(release.version, currentVersion) <= 0) {

@@ -5,7 +5,6 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 
-const clientVersion = '1.1.0';
 const minServerVersion = '1.0.0';
 const _serverVersionHeader = 'X-Codeoff-Server-Version';
 const _minClientVersionHeader = 'X-Codeoff-Min-Client-Version';
@@ -81,11 +80,13 @@ enum RemotePermissionMode {
 class RemoteApi {
   RemoteApi(
     String endpoint, {
+    required this.clientVersion,
     this.token,
     this.heartbeatInterval = const Duration(seconds: 10),
   }) : base = Uri.parse(endpoint.trim().replaceFirst(RegExp(r'/+$'), ''));
 
   final Uri base;
+  final String clientVersion;
   String? token;
   final Duration heartbeatInterval;
   final _events = StreamController<Map<String, dynamic>>.broadcast();
@@ -404,7 +405,8 @@ class RemoteApi {
       try {
         if (serverVersion == null ||
             requiredClient == null ||
-            compareRemoteVersions(serverVersion, minServerVersion) < 0 ||
+            (serverVersion != 'dev' &&
+                compareRemoteVersions(serverVersion, minServerVersion) < 0) ||
             compareRemoteVersions(clientVersion, requiredClient) < 0) {
           throw const FormatException('Incompatible versions');
         }

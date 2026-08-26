@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'app.dart';
 import 'local_notifications.dart';
@@ -18,8 +19,8 @@ export 'home/remote_home_page.dart'
         processingSummaryFromThread,
         shouldNotifyThreadMessage;
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   unawaited(LocalNotifications.instance.initialize());
-  runApp(const CodeoffApp());
+  runApp(CodeoffApp(version: (await PackageInfo.fromPlatform()).version));
 }

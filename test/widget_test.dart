@@ -12,10 +12,12 @@ import 'package:codeoff/connection/pairing_payload.dart';
 import 'package:codeoff/main.dart';
 import 'package:codeoff/storage/connection_store.dart';
 
+const _testVersion = '1.1.0';
+
 Future<WebSocket> upgradeWebSocket(HttpRequest request) {
   request.response.headers
     ..set('X-Codeoff-Server-Version', minServerVersion)
-    ..set('X-Codeoff-Min-Client-Version', clientVersion);
+    ..set('X-Codeoff-Min-Client-Version', _testVersion);
   return WebSocketTransformer.upgrade(request);
 }
 
@@ -235,6 +237,7 @@ void main() {
     });
     final api = RemoteApi(
       'http://${server.address.address}:${server.port}',
+      clientVersion: _testVersion,
       heartbeatInterval: const Duration(milliseconds: 20),
     );
     final disconnected = Completer<Object>();
@@ -262,6 +265,7 @@ void main() {
     });
     final api = RemoteApi(
       'http://${server.address.address}:${server.port}',
+      clientVersion: _testVersion,
       heartbeatInterval: const Duration(milliseconds: 20),
     );
     final disconnected = Completer<Object>();
@@ -292,6 +296,7 @@ void main() {
     });
     final api = RemoteApi(
       'http://${server.address.address}:${server.port}',
+      clientVersion: _testVersion,
       heartbeatInterval: const Duration(milliseconds: 20),
     );
     final disconnected = Completer<Object>();
@@ -316,7 +321,10 @@ void main() {
       request.response.statusCode = HttpStatus.serviceUnavailable;
       await request.response.close();
     });
-    final api = RemoteApi('http://${server.address.address}:${server.port}');
+    final api = RemoteApi(
+      'http://${server.address.address}:${server.port}',
+      clientVersion: _testVersion,
+    );
 
     await expectLater(
       api.reconnect(retryDelay: Duration.zero),
@@ -419,7 +427,7 @@ void main() {
   });
 
   testWidgets('renders remote control sections', (WidgetTester tester) async {
-    await tester.pumpWidget(const CodeoffApp());
+    await tester.pumpWidget(const CodeoffApp(version: _testVersion));
     expect(find.text('Offline'), findsOneWidget);
     expect(find.text('Reconnect'), findsOneWidget);
     expect(find.text('Codeoff'), findsOneWidget);
@@ -431,7 +439,7 @@ void main() {
   testWidgets('renders Chinese Material controls', (WidgetTester tester) async {
     tester.binding.platformDispatcher.localeTestValue = const Locale('zh');
     addTearDown(tester.binding.platformDispatcher.clearLocaleTestValue);
-    await tester.pumpWidget(const CodeoffApp());
+    await tester.pumpWidget(const CodeoffApp(version: _testVersion));
     await tester.pumpAndSettle();
 
     expect(find.text('设置'), findsOneWidget);

@@ -25,8 +25,10 @@ extension _ConnectionController on _RemoteHomePageState {
       if (token.isEmpty) {
         pairing = await _pairDialog();
         if (pairing == null) return;
-        final value = await RemoteApi(endpointValue)
-            .pair('${pairing['token']}', '${pairing['name']}');
+        final value = await RemoteApi(
+          endpointValue,
+          clientVersion: widget.version,
+        ).pair('${pairing['token']}', '${pairing['name']}');
         token = _stringValue(value, 'token');
         pairing = _serverFrom(value);
       }

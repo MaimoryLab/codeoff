@@ -11,7 +11,9 @@ import 'storage/connection_store.dart';
 import 'storage/thread_cache.dart';
 
 class CodeoffApp extends StatefulWidget {
-  const CodeoffApp({super.key});
+  const CodeoffApp({required this.version, super.key});
+
+  final String version;
 
   @override
   State<CodeoffApp> createState() => _CodeoffAppState();
@@ -19,7 +21,7 @@ class CodeoffApp extends StatefulWidget {
 
 class _CodeoffAppState extends State<CodeoffApp> {
   final connectionStore = ConnectionStore(const FlutterSecureStorage());
-  final remoteConnection = RemoteConnection();
+  late final remoteConnection = RemoteConnection(widget.version);
   final threadCache = ThreadCache();
 
   @override
@@ -73,6 +75,7 @@ class _CodeoffAppState extends State<CodeoffApp> {
         useMaterial3: true,
       ),
       home: RemoteHomePage(
+        version: widget.version,
         connectionStore: connectionStore,
         remoteConnection: remoteConnection,
         threadCache: threadCache,

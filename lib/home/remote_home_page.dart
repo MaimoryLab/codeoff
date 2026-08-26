@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:ota_update/ota_update.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
@@ -65,12 +64,14 @@ class _DirectoryListing {
 
 class RemoteHomePage extends StatefulWidget {
   const RemoteHomePage({
+    required this.version,
     required this.connectionStore,
     required this.remoteConnection,
     required this.threadCache,
     super.key,
   });
 
+  final String version;
   final ConnectionStore connectionStore;
   final RemoteConnection remoteConnection;
   final ThreadCache threadCache;
@@ -106,7 +107,6 @@ class _RemoteHomePageState extends State<RemoteHomePage>
   final accessToken = TextEditingController();
   final input = TextEditingController();
   final search = TextEditingController();
-  final packageInfo = PackageInfo.fromPlatform();
   late final connectionStore = widget.connectionStore;
   late final remoteConnection = widget.remoteConnection;
   late final threadCache = widget.threadCache;
