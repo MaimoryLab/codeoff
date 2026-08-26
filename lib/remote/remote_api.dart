@@ -1,11 +1,47 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
+
+import 'package:crypto/crypto.dart';
+
+const clientVersion = '1.0.0';
+const minServerVersion = '0.1.0';
+const _serverVersionHeader = 'X-Codex-Server-Version';
+const _minClientVersionHeader = 'X-Codex-Min-Client-Version';
+const _webSocketGuid = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+
+int compareRemoteVersions(String left, String right) {
+  List<int> parse(String value) {
+    final core = value.trim().split(RegExp(r'[+-]')).first;
+    final parts = core.split('.');
+    if (parts.length != 3) throw const FormatException('Invalid version');
+    return parts.map((part) {
+      final number = int.tryParse(part);
+      if (number == null || number < 0) {
+        throw const FormatException('Invalid version');
+      }
+      return number;
+    }).toList();
+  }
+
+  final a = parse(left);
+  final b = parse(right);
+  for (var index = 0; index < a.length; index++) {
+    if (a[index] != b[index]) return a[index].compareTo(b[index]);
+  }
+  return 0;
+}
 
 class ApiException implements Exception {
-  ApiException(this.message, {this.statusCode});
+  ApiException(this.message, {this.statusCode, this.upgradeRequired = false});
+  ApiException.upgradeRequired(this.message)
+    : statusCode = null,
+      upgradeRequired = true;
+
   final String message;
   final int? statusCode;
+  final bool upgradeRequired;
 
   bool get isConnectionFailure =>
       statusCode == null ||
@@ -295,10 +331,8 @@ class RemoteApi {
           if (token != null && token!.isNotEmpty)
             HttpHeaders.authorizationHeader: 'Bearer $token',
         };
-        final socket = await WebSocket.connect(
-          _webSocketUri.toString(),
-          headers: headers,
-        ).timeout(const Duration(seconds: 10));
+        final socket = await _connectWebSocket(headers)
+            .timeout(const Duration(seconds: 10));
         if (_closed) {
           await socket.close(WebSocketStatus.normalClosure);
           throw ApiException('Connection closed');
@@ -333,6 +367,62 @@ class RemoteApi {
     query: '',
     fragment: '',
   );
+
+  Future<WebSocket> _connectWebSocket(Map<String, String> headers) async {
+    final client = HttpClient();
+    try {
+      final uri = _webSocketUri.replace(
+        scheme: _webSocketUri.scheme == 'wss' ? 'https' : 'http',
+      );
+      final request = await client.openUrl('GET', uri);
+      final key = base64Encode(
+        List<int>.generate(16, (_) => Random.secure().nextInt(256)),
+      );
+      request.headers
+        ..add(HttpHeaders.connectionHeader, 'Upgrade')
+        ..add(HttpHeaders.upgradeHeader, 'websocket')
+        ..add('Sec-WebSocket-Version', '13')
+        ..add('Sec-WebSocket-Key', key);
+      headers.forEach(request.headers.set);
+      final response = await request.close();
+      if (response.statusCode != HttpStatus.switchingProtocols) {
+        throw ApiException(
+          'WebSocket handshake failed (${response.statusCode})',
+          statusCode: response.statusCode,
+        );
+      }
+      final expectedAccept = base64Encode(
+        sha1.convert(utf8.encode('$key$_webSocketGuid')).bytes,
+      );
+      if (response.headers.value('Sec-WebSocket-Accept') != expectedAccept) {
+        final socket = await response.detachSocket();
+        socket.destroy();
+        throw ApiException('Invalid WebSocket handshake');
+      }
+      final serverVersion = response.headers.value(_serverVersionHeader);
+      final requiredClient = response.headers.value(_minClientVersionHeader);
+      try {
+        if (serverVersion == null ||
+            requiredClient == null ||
+            compareRemoteVersions(serverVersion, minServerVersion) < 0 ||
+            compareRemoteVersions(clientVersion, requiredClient) < 0) {
+          throw const FormatException('Incompatible versions');
+        }
+      } on FormatException {
+        final socket = await response.detachSocket();
+        socket.destroy();
+        throw ApiException.upgradeRequired(
+          'Unable to connect: app upgrade required',
+        );
+      }
+      return WebSocket.fromUpgradedSocket(
+        await response.detachSocket(),
+        serverSide: false,
+      );
+    } finally {
+      client.close(force: true);
+    }
+  }
 
   void _receive(WebSocket socket, dynamic data) {
     try {

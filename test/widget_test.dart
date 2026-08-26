@@ -12,6 +12,13 @@ import 'package:codex_remote/connection/pairing_payload.dart';
 import 'package:codex_remote/main.dart';
 import 'package:codex_remote/storage/connection_store.dart';
 
+Future<WebSocket> upgradeWebSocket(HttpRequest request) {
+  request.response.headers
+    ..set('X-Codex-Server-Version', minServerVersion)
+    ..set('X-Codex-Min-Client-Version', clientVersion);
+  return WebSocketTransformer.upgrade(request);
+}
+
 void main() {
   test('parses Unix timestamps as dates', () {
     expect(
@@ -197,7 +204,7 @@ void main() {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     var heartbeats = 0;
     server.listen((request) async {
-      final socket = await WebSocketTransformer.upgrade(request);
+      final socket = await upgradeWebSocket(request);
       socket.listen((data) {
         final message = jsonDecode('$data');
         if (message is Map && message['method'] == 'heartbeat') heartbeats++;
@@ -226,7 +233,7 @@ void main() {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final connected = Completer<void>();
     server.listen((request) async {
-      final socket = await WebSocketTransformer.upgrade(request);
+      final socket = await upgradeWebSocket(request);
       connected.complete();
       socket.listen((_) {});
     });
@@ -254,7 +261,7 @@ void main() {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final connected = Completer<void>();
     server.listen((request) async {
-      final socket = await WebSocketTransformer.upgrade(request);
+      final socket = await upgradeWebSocket(request);
       connected.complete();
       socket.listen((_) {
         socket.add(jsonEncode({'method': 'activity', 'params': {}}));

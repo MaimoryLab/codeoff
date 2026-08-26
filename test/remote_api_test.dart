@@ -48,4 +48,63 @@ void main() {
     expect(request.authorization, 'Bearer secret');
     expect(uploaded.path, '/tmp/uploaded.txt');
   });
+
+  test(
+    'exchanges compatible versions during the WebSocket handshake',
+    () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        request.response.headers
+          ..set('X-Codex-Server-Version', minServerVersion)
+          ..set('X-Codex-Min-Client-Version', clientVersion);
+        final socket = await WebSocketTransformer.upgrade(request);
+        socket.listen((data) {
+          final message = jsonDecode('$data') as Map<String, dynamic>;
+          socket.add(jsonEncode({'id': message['id'], 'result': {}}));
+        });
+      });
+      addTearDown(() => server.close(force: true));
+      final api = RemoteApi('http://${server.address.address}:${server.port}');
+      addTearDown(api.close);
+
+      await api.status();
+    },
+  );
+
+  for (final versions in <(String?, String?)>[
+    ('0.0.9', clientVersion),
+    (minServerVersion, '2.0.0'),
+    (null, null),
+  ]) {
+    test('requires an upgrade for incompatible versions $versions', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        if (versions.$1 != null) {
+          request.response.headers.set('X-Codex-Server-Version', versions.$1!);
+        }
+        if (versions.$2 != null) {
+          request.response.headers.set(
+            'X-Codex-Min-Client-Version',
+            versions.$2!,
+          );
+        }
+        final socket = await WebSocketTransformer.upgrade(request);
+        socket.listen((_) {});
+      });
+      addTearDown(() => server.close(force: true));
+      final api = RemoteApi('http://${server.address.address}:${server.port}');
+      addTearDown(api.close);
+
+      await expectLater(
+        api.status(),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.upgradeRequired,
+            'upgradeRequired',
+            isTrue,
+          ),
+        ),
+      );
+    });
+  }
 }
