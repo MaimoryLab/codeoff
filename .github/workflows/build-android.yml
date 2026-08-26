@@ -22,7 +22,13 @@ jobs:
         with:
           channel: stable
           cache: true
-      - run: flutter build apk --target-platform android-arm64 --release
+      - name: Build APK
+        run: |
+          args=()
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            args+=(--build-name "${GITHUB_REF_NAME#v}" --build-number "$GITHUB_RUN_NUMBER")
+          fi
+          flutter build apk --target-platform android-arm64 --release "${args[@]}"
       - uses: actions/upload-artifact@v7
         with:
           name: codeoff-android-arm64
