@@ -36,7 +36,7 @@ class _CodexRemoteAppState extends State<CodexRemoteApp> {
         ? const Locale('zh')
         : const Locale('en');
     return MaterialApp(
-      title: 'Codex Remote',
+      title: 'Codeoff',
       locale: appLocale,
       supportedLocales: AppLocalizations.supportedLocales,
       localizationsDelegates: const [

@@ -7,7 +7,7 @@ extension _SettingsView on _RemoteHomePageState {
       const Padding(
         padding: EdgeInsets.only(bottom: 22),
         child: Text(
-          'Codex Remote',
+          'Codeoff',
           style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
         ),
       ),

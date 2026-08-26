@@ -1,6 +1,6 @@
-# Codex Remote Mobile
+# Codeoff Mobile
 
-Flutter client for the local Codex Remote desktop bridge.
+Flutter client for the local Codeoff desktop bridge.
 
 1. Start the desktop app and start its Cloudflare Tunnel.
 2. Copy the tunnel endpoint and one-time pairing code from the desktop panel.

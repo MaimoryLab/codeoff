@@ -160,7 +160,7 @@ extension _HomeScaffold on _RemoteHomePageState {
                 ),
                 SizedBox(width: 12),
                 Text(
-                  'Codex Remote',
+                  'Codeoff',
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                 ),
               ],

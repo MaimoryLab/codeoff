@@ -405,7 +405,7 @@ void main() {
     await tester.pumpWidget(const CodexRemoteApp());
     expect(find.text('Offline'), findsOneWidget);
     expect(find.text('Reconnect'), findsOneWidget);
-    expect(find.text('Codex Remote'), findsOneWidget);
+    expect(find.text('Codeoff'), findsOneWidget);
     expect(find.text('Desktop endpoint'), findsOneWidget);
     expect(find.text('Connect to a desktop'), findsOneWidget);
     expect(find.text('Connection history'), findsOneWidget);
