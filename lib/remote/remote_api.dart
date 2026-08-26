@@ -6,9 +6,9 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 
 const clientVersion = '1.0.0';
-const minServerVersion = '0.1.0';
-const _serverVersionHeader = 'X-Codex-Server-Version';
-const _minClientVersionHeader = 'X-Codex-Min-Client-Version';
+const minServerVersion = '1.0.0';
+const _serverVersionHeader = 'X-Codeoff-Server-Version';
+const _minClientVersionHeader = 'X-Codeoff-Min-Client-Version';
 const _webSocketGuid = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
 int compareRemoteVersions(String left, String right) {
