@@ -10,14 +10,14 @@ import 'remote/remote_connection.dart';
 import 'storage/connection_store.dart';
 import 'storage/thread_cache.dart';
 
-class CodexRemoteApp extends StatefulWidget {
-  const CodexRemoteApp({super.key});
+class CodeoffApp extends StatefulWidget {
+  const CodeoffApp({super.key});
 
   @override
-  State<CodexRemoteApp> createState() => _CodexRemoteAppState();
+  State<CodeoffApp> createState() => _CodeoffAppState();
 }
 
-class _CodexRemoteAppState extends State<CodexRemoteApp> {
+class _CodeoffAppState extends State<CodeoffApp> {
   final connectionStore = ConnectionStore(const FlutterSecureStorage());
   final remoteConnection = RemoteConnection();
   final threadCache = ThreadCache();

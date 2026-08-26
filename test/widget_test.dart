@@ -402,7 +402,7 @@ void main() {
   });
 
   testWidgets('renders remote control sections', (WidgetTester tester) async {
-    await tester.pumpWidget(const CodexRemoteApp());
+    await tester.pumpWidget(const CodeoffApp());
     expect(find.text('Offline'), findsOneWidget);
     expect(find.text('Reconnect'), findsOneWidget);
     expect(find.text('Codeoff'), findsOneWidget);
@@ -414,7 +414,7 @@ void main() {
   testWidgets('renders Chinese Material controls', (WidgetTester tester) async {
     tester.binding.platformDispatcher.localeTestValue = const Locale('zh');
     addTearDown(tester.binding.platformDispatcher.clearLocaleTestValue);
-    await tester.pumpWidget(const CodexRemoteApp());
+    await tester.pumpWidget(const CodeoffApp());
     await tester.pumpAndSettle();
 
     expect(find.text('设置'), findsOneWidget);

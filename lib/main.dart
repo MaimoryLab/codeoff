@@ -21,5 +21,5 @@ export 'home/remote_home_page.dart'
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   unawaited(LocalNotifications.instance.initialize());
-  runApp(const CodexRemoteApp());
+  runApp(const CodeoffApp());
 }
