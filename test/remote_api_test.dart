@@ -55,8 +55,8 @@ void main() {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
         request.response.headers
-          ..set('X-Codex-Server-Version', minServerVersion)
-          ..set('X-Codex-Min-Client-Version', clientVersion);
+          ..set('X-Codeoff-Server-Version', minServerVersion)
+          ..set('X-Codeoff-Min-Client-Version', clientVersion);
         final socket = await WebSocketTransformer.upgrade(request);
         socket.listen((data) {
           final message = jsonDecode('$data') as Map<String, dynamic>;
@@ -80,11 +80,11 @@ void main() {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
         if (versions.$1 != null) {
-          request.response.headers.set('X-Codex-Server-Version', versions.$1!);
+          request.response.headers.set('X-Codeoff-Server-Version', versions.$1!);
         }
         if (versions.$2 != null) {
           request.response.headers.set(
-            'X-Codex-Min-Client-Version',
+            'X-Codeoff-Min-Client-Version',
             versions.$2!,
           );
         }

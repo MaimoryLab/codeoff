@@ -14,8 +14,8 @@ import 'package:codeoff/storage/connection_store.dart';
 
 Future<WebSocket> upgradeWebSocket(HttpRequest request) {
   request.response.headers
-    ..set('X-Codex-Server-Version', minServerVersion)
-    ..set('X-Codex-Min-Client-Version', clientVersion);
+    ..set('X-Codeoff-Server-Version', minServerVersion)
+    ..set('X-Codeoff-Min-Client-Version', clientVersion);
   return WebSocketTransformer.upgrade(request);
 }
 
