@@ -5,7 +5,7 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 
-const clientVersion = '1.0.0';
+const clientVersion = '1.1.0';
 const minServerVersion = '1.0.0';
 const _serverVersionHeader = 'X-Codeoff-Server-Version';
 const _minClientVersionHeader = 'X-Codeoff-Min-Client-Version';
