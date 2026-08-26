@@ -44,6 +44,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
-            gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
-          gh release upload "$GITHUB_REF_NAME" app-release.apk --clobber
+          gh release create "$GITHUB_REF_NAME" app-release.apk --title "$GITHUB_REF_NAME" --generate-notes
