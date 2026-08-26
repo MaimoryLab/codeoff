@@ -19,7 +19,13 @@ Future<WebSocket> upgradeWebSocket(HttpRequest request) {
   return WebSocketTransformer.upgrade(request);
 }
 
+class RealHttpOverrides extends HttpOverrides {}
+
 void main() {
+  final previousHttpOverrides = HttpOverrides.current;
+  setUpAll(() => HttpOverrides.global = RealHttpOverrides());
+  tearDownAll(() => HttpOverrides.global = previousHttpOverrides);
+
   test('parses Unix timestamps as dates', () {
     expect(
       parseRemoteTimestamp(1787301205),
