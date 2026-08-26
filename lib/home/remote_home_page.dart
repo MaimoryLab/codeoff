@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:ota_update/ota_update.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
@@ -19,6 +22,7 @@ part 'home_scaffold.dart';
 part '../connection/connection_controller.dart';
 part '../connection/connection_settings_view.dart';
 part '../connection/pairing_scanner.dart';
+part '../update/app_update.dart';
 part '../thread/thread_controller.dart';
 part '../thread/thread_data.dart';
 part '../thread/thread_events.dart';
@@ -102,6 +106,7 @@ class _RemoteHomePageState extends State<RemoteHomePage>
   final accessToken = TextEditingController();
   final input = TextEditingController();
   final search = TextEditingController();
+  final packageInfo = PackageInfo.fromPlatform();
   late final connectionStore = widget.connectionStore;
   late final remoteConnection = widget.remoteConnection;
   late final threadCache = widget.threadCache;
@@ -232,6 +237,8 @@ class _RemoteHomePageState extends State<RemoteHomePage>
         SnackBar(content: Text(text), duration: const Duration(seconds: 1)),
       );
   }
+
+  void _setMessage(String value) => setState(() => message = value);
 
   @override
   Widget build(BuildContext context) => _homeScaffold(context);

@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 
 import 'package:codeoff/api.dart';
 import 'package:codeoff/home/remote_home_page.dart'
-    show startPeriodicRefresh, updateRemoteThread;
+    show parseGitHubRelease, startPeriodicRefresh, updateRemoteThread;
 import 'package:codeoff/connection/pairing_payload.dart';
 import 'package:codeoff/main.dart';
 import 'package:codeoff/storage/connection_store.dart';
@@ -35,6 +35,23 @@ void main() {
       parseRemoteTimestamp('1787301205000'),
       DateTime.fromMillisecondsSinceEpoch(1787301205000, isUtc: true).toLocal(),
     );
+  });
+
+  test('parses the APK and checksum from a GitHub release', () {
+    final release = parseGitHubRelease({
+      'tag_name': 'v1.2.3',
+      'assets': [
+        {
+          'name': 'app-release.apk',
+          'browser_download_url': 'https://github.com/MaimoryLab/codeoff/releases/download/v1.2.3/app-release.apk',
+          'digest': 'sha256:${'a' * 64}',
+        },
+      ],
+    });
+
+    expect(release.version, '1.2.3');
+    expect(release.downloadUrl, endsWith('/app-release.apk'));
+    expect(release.sha256, 'a' * 64);
   });
 
   test('notifies only for a thread that is not open', () {
