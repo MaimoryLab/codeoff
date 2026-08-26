@@ -59,60 +59,71 @@ Future<AppRelease> fetchLatestGitHubRelease() async {
 }
 
 extension _AppUpdate on _RemoteHomePageState {
-  Future<void> checkForUpdate() =>
-      _run(context.t('checkingForUpdates'), () async {
-        final currentVersion = (await packageInfo).version;
-        final release = await fetchLatestGitHubRelease();
-        if (!mounted) return;
-        if (compareRemoteVersions(release.version, currentVersion) <= 0) {
-          _toast(context.t('upToDate'));
-          return;
-        }
+  Future<void> checkForUpdate({bool silent = false}) async {
+    Future<void> check() async {
+      final currentVersion = (await packageInfo).version;
+      final release = await fetchLatestGitHubRelease();
+      if (!mounted) return;
+      if (compareRemoteVersions(release.version, currentVersion) <= 0) {
+        if (!silent) _toast(context.t('upToDate'));
+        return;
+      }
 
-        final install = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(context.t('updateAvailable')),
-            content: Text(
-              context.t('updateDescription', {
-                'current': currentVersion,
-                'latest': release.version,
-              }),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text(context.t('cancel')),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: Text(context.t('downloadAndInstall')),
-              ),
-            ],
+      final install = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(context.t('updateAvailable')),
+          content: Text(
+            context.t('updateDescription', {
+              'current': currentVersion,
+              'latest': release.version,
+            }),
           ),
-        );
-        if (install != true || !mounted) return;
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(context.t('cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(context.t('downloadAndInstall')),
+            ),
+          ],
+        ),
+      );
+      if (install != true || !mounted) return;
 
-        await for (final event in OtaUpdate().execute(
-          release.downloadUrl,
-          destinationFilename: 'codeoff-${release.version}.apk',
-          sha256checksum: release.sha256,
-        )) {
-          if (!mounted) return;
-          if (event.status == OtaStatus.DOWNLOADING) {
-            _setMessage(
-              context.t('downloadingUpdate', {'progress': event.value ?? '0'}),
-            );
-          } else if (event.status == OtaStatus.INSTALLING ||
-              event.status == OtaStatus.INSTALLATION_DONE) {
-            _setMessage(context.t('installingUpdate'));
-          } else {
-            throw StateError(
-              event.value?.isNotEmpty == true
-                  ? event.value!
-                  : context.t('updateFailed'),
-            );
-          }
+      await for (final event in OtaUpdate().execute(
+        release.downloadUrl,
+        destinationFilename: 'codeoff-${release.version}.apk',
+        sha256checksum: release.sha256,
+      )) {
+        if (!mounted) return;
+        if (event.status == OtaStatus.DOWNLOADING) {
+          _setMessage(
+            context.t('downloadingUpdate', {'progress': event.value ?? '0'}),
+          );
+        } else if (event.status == OtaStatus.INSTALLING ||
+            event.status == OtaStatus.INSTALLATION_DONE) {
+          _setMessage(context.t('installingUpdate'));
+        } else {
+          throw StateError(
+            event.value?.isNotEmpty == true
+                ? event.value!
+                : context.t('updateFailed'),
+          );
         }
-      });
+      }
+    }
+
+    if (!silent) {
+      await _run(context.t('checkingForUpdates'), check);
+      return;
+    }
+    try {
+      await check();
+    } catch (_) {
+      // Startup checks are best-effort; manual checks still report failures.
+    }
+  }
 }

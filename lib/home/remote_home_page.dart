@@ -155,6 +155,11 @@ class _RemoteHomePageState extends State<RemoteHomePage>
     );
     eventSubscription = remoteConnection.events.listen(_handleRemoteEvent);
     unawaited(_restoreConnection());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && Platform.isAndroid) {
+        unawaited(checkForUpdate(silent: true));
+      }
+    });
   }
 
   @override
