@@ -11,7 +11,7 @@ class ThreadCacheSnapshot {
 }
 
 class ThreadCache {
-  static const _directoryName = 'codex_remote_threads';
+  static const _directoryName = 'codeoff_threads';
   Future<void> _writes = Future.value();
 
   void write(

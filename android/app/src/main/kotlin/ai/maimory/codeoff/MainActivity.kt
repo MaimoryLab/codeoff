@@ -1,4 +1,4 @@
-package com.example.codex_remote
+package ai.maimory.codeoff
 
 import io.flutter.embedding.android.FlutterActivity
 

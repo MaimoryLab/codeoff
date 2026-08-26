@@ -1,7 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:codex_remote/storage/connection_store.dart';
+import 'package:codeoff/storage/connection_store.dart';
 
 void main() {
   test('owns saved server records and permission preference', () async {

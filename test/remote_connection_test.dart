@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:codex_remote/api.dart';
-import 'package:codex_remote/remote/remote_connection.dart';
+import 'package:codeoff/api.dart';
+import 'package:codeoff/remote/remote_connection.dart';
 
 void main() {
   test('owns connection status, events, and reconnects', () async {

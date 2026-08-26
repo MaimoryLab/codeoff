@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:codex_remote/api.dart';
+import 'package:codeoff/api.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

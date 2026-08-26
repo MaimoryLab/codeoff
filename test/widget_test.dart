@@ -5,12 +5,12 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 
-import 'package:codex_remote/api.dart';
-import 'package:codex_remote/home/remote_home_page.dart'
+import 'package:codeoff/api.dart';
+import 'package:codeoff/home/remote_home_page.dart'
     show startPeriodicRefresh, updateRemoteThread;
-import 'package:codex_remote/connection/pairing_payload.dart';
-import 'package:codex_remote/main.dart';
-import 'package:codex_remote/storage/connection_store.dart';
+import 'package:codeoff/connection/pairing_payload.dart';
+import 'package:codeoff/main.dart';
+import 'package:codeoff/storage/connection_store.dart';
 
 Future<WebSocket> upgradeWebSocket(HttpRequest request) {
   request.response.headers

@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.codex_remote"
+    namespace = "ai.maimory.codeoff"
     compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
@@ -17,7 +17,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.codex_remote"
+        applicationId = "ai.maimory.codeoff"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 35
