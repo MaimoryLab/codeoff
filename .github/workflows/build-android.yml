@@ -5,12 +5,6 @@ on:
     tags:
       - 'v*.*.*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: Release version (for example v0.3.0)
-        required: true
-        type: string
-        default: v0.0.0
 
 permissions:
   contents: read
