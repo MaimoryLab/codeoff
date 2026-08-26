@@ -26,6 +26,7 @@ extension _PairingScanner on _RemoteHomePageState {
     final invalidPairingCode = context.t('invalidPairingCode');
     final noReachableAddress = context.t('noReachableAddress');
     final serverNotPaired = context.t('serverNotPaired');
+    final upgradeRequired = context.t('upgradeRequired');
     final deviceName = _defaultDeviceName;
     await _run(connecting, () async {
       try {
@@ -34,6 +35,7 @@ extension _PairingScanner on _RemoteHomePageState {
           deviceName: deviceName,
           noReachableAddress: noReachableAddress,
           serverNotPaired: serverNotPaired,
+          upgradeRequired: upgradeRequired,
         );
       } on FormatException {
         throw _PairingFailure(invalidPairingCode);
@@ -50,6 +52,7 @@ extension _PairingScanner on _RemoteHomePageState {
     required String deviceName,
     required String noReachableAddress,
     required String serverNotPaired,
+    required String upgradeRequired,
   }) async {
     final saved = connections.where(
       (record) => record['serverId'] == payload.serverUuid,
@@ -92,11 +95,17 @@ extension _PairingScanner on _RemoteHomePageState {
       }
     }
 
-    final candidate = await _firstReachable(
-      payload.endpoints,
-      token,
-      payload.serverUuid,
-    );
+    String? candidate;
+    try {
+      candidate = await _firstReachable(
+        payload.endpoints,
+        token,
+        payload.serverUuid,
+      );
+    } on ApiException catch (error) {
+      if (error.upgradeRequired) throw _PairingFailure(upgradeRequired);
+      rethrow;
+    }
     if (candidate == null) {
       throw _PairingFailure(noReachableAddress);
     }
@@ -126,6 +135,7 @@ extension _PairingScanner on _RemoteHomePageState {
             return candidate;
           }
         } catch (error) {
+          if (error is ApiException && error.upgradeRequired) rethrow;
           if (attempt + 1 == attempts ||
               !_shouldRetryTunnel(candidate, error)) {
             break;

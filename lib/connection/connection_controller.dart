@@ -142,7 +142,9 @@ extension _ConnectionController on _RemoteHomePageState {
         case RemoteConnectionStatus.offline:
           final error = remoteConnection.lastError;
           if (error != null) {
-            message = context.t('disconnected', {'error': '$error'});
+            message = error is ApiException && error.upgradeRequired
+                ? context.t('upgradeRequired')
+                : context.t('disconnected', {'error': '$error'});
           }
         case RemoteConnectionStatus.connecting:
           break;

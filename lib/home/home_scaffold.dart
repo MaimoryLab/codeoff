@@ -104,7 +104,9 @@ extension _HomeScaffold on _RemoteHomePageState {
                       ? context.t('connecting')
                       : pending
                       ? context.t('reconnecting')
-                      : context.t('offline'),
+                      : remoteConnection.lastError == null
+                      ? context.t('offline')
+                      : message,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),

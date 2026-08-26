@@ -193,7 +193,9 @@ class _RemoteHomePageState extends State<RemoteHomePage>
         final client = api;
         setState(() {
           if (disconnected && client == null) {
-            message = context.t('disconnected', {'error': '$error'});
+            message = error.upgradeRequired
+                ? context.t('upgradeRequired')
+                : context.t('disconnected', {'error': '$error'});
           } else if (!disconnected) {
             message = error.toString();
           }
@@ -201,7 +203,11 @@ class _RemoteHomePageState extends State<RemoteHomePage>
         if (disconnected && client != null) {
           unawaited(reconnect());
         }
-        if (!disconnected) {
+        if (error is ApiException && error.upgradeRequired) {
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(content: Text(context.t('upgradeRequired'))),
+          );
+        } else if (!disconnected) {
           ScaffoldMessenger.maybeOf(context)
               ?.showSnackBar(SnackBar(content: Text(error.toString())));
         }
