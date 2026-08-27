@@ -221,27 +221,26 @@ class _SelectableHighlight extends StatelessWidget {
   Widget build(BuildContext context) {
     final lineCount = source.split('\n').length;
     final lineNumberWidth = lineCount.toString().length;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          IgnorePointer(
-            child: Text(
-              List.generate(
-                lineCount,
-                (index) => (index + 1).toString().padLeft(lineNumberWidth),
-              ).join('\n'),
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: Colors.white38,
-                fontFamily: 'monospace',
-                fontSize: 13,
-              ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        IgnorePointer(
+          child: Text(
+            List.generate(
+              lineCount,
+              (index) => (index + 1).toString().padLeft(lineNumberWidth),
+            ).join('\n'),
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: Colors.white38,
+              fontFamily: 'monospace',
+              fontSize: 13,
             ),
           ),
-          const SizedBox(width: 12),
-          SelectableText.rich(
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: SelectableText.rich(
             TextSpan(
               style: vs2015Theme['root']!.copyWith(
                 backgroundColor: Colors.transparent,
@@ -252,10 +251,9 @@ class _SelectableHighlight extends StatelessWidget {
                 highlight.parse(source, language: language).nodes ?? const [],
               ),
             ),
-            textWidthBasis: TextWidthBasis.longestLine,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
