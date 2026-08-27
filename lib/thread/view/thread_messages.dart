@@ -27,8 +27,10 @@ String? filePathFromHref(String? href, {String cwd = ''}) {
   if (uri.scheme.isNotEmpty) return null;
   final path = Uri.decodeComponent(uri.path);
   if (path.isEmpty) return null;
-  if (path.startsWith('/') || cwd.trim().isEmpty) return path;
-  final base = cwd.endsWith('/') || cwd.endsWith('\\') ? cwd : '$cwd/';
+  if (path.startsWith('/')) return path;
+  final root = cwd.trim();
+  if (root.isEmpty) return null;
+  final base = root.endsWith('/') || root.endsWith('\\') ? root : '$root/';
   return Uri.file(base).resolve(path).toFilePath(windows: Platform.isWindows);
 }
 
@@ -171,7 +173,10 @@ extension _ThreadMessages on _RemoteHomePageState {
           styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)),
           onTapLink: (_, href, _) async {
             final client = api;
-            final filePath = filePathFromHref(href);
+            final filePath = filePathFromHref(
+              href,
+              cwd: _threadCwd(selectedThread ?? ''),
+            );
             if (filePath != null) {
               if (client != null) {
                 await openRemoteFile(context, client, filePath);

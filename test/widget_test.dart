@@ -443,7 +443,7 @@ void main() {
       filePathFromHref('lib/main.dart', cwd: '/workspace'),
       '/workspace/lib/main.dart',
     );
-    expect(filePathFromHref('lib/main.dart'), 'lib/main.dart');
+    expect(filePathFromHref('lib/main.dart'), isNull);
     expect(filePathFromHref('#section', cwd: '/workspace'), isNull);
     expect(
       fileChangePath({
