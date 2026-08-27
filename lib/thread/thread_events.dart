@@ -33,7 +33,7 @@ extension _RemoteEvents on _RemoteHomePageState {
       });
     }
     final params = event['params'] is Map
-        ? Map<String, dynamic>.from(event['params'] as Map)
+        ? mutableRemoteValue(event['params']) as Map<String, dynamic>
         : <String, dynamic>{};
     final threadId = '${params['threadId'] ?? ''}';
     final status = params['status'];
@@ -77,6 +77,7 @@ extension _RemoteEvents on _RemoteHomePageState {
         activeTurnId = activeTurnIdFrom(params);
         processingSummary = context.t('working');
         processingItemId = '';
+        processingItems = [];
       });
     }
     if (method == 'item/started' && threadId == selectedThread) {
@@ -89,6 +90,12 @@ extension _RemoteEvents on _RemoteHomePageState {
         setState(() {
           processingSummary = summary;
           processingItemId = '${item is Map ? item['id'] ?? '' : ''}';
+          if (item is Map) {
+            processingItems = [
+              ...processingItems.where((entry) => entry['id'] != item['id']),
+              mutableRemoteValue(item) as Map<String, dynamic>,
+            ];
+          }
         });
       }
     }
@@ -106,8 +113,16 @@ extension _RemoteEvents on _RemoteHomePageState {
       }
     }
     if (method == 'item/completed' && threadId == selectedThread) {
-      final itemId =
-          '${params['item'] is Map ? params['item']['id'] ?? '' : ''}';
+      final item = params['item'];
+      if (item is Map) {
+        setState(() {
+          processingItems = [
+            ...processingItems.where((entry) => entry['id'] != item['id']),
+            mutableRemoteValue(item) as Map<String, dynamic>,
+          ];
+        });
+      }
+      final itemId = '${item is Map ? item['id'] ?? '' : ''}';
       if (itemId == processingItemId) {
         setState(() => processingSummary = context.t('working'));
       }
@@ -117,6 +132,7 @@ extension _RemoteEvents on _RemoteHomePageState {
         activeTurnId = '';
         processingSummary = '';
         processingItemId = '';
+        processingItems = [];
       });
       _loadHistory(selectedThread, force: true);
       unawaited(_reloadThreads());

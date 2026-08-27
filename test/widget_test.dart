@@ -7,7 +7,11 @@ import 'package:flutter/material.dart';
 
 import 'package:codeoff/api.dart';
 import 'package:codeoff/home/remote_home_page.dart'
-    show parseGitHubRelease, startPeriodicRefresh, updateRemoteThread;
+    show
+        mutableRemoteValue,
+        parseGitHubRelease,
+        startPeriodicRefresh,
+        updateRemoteThread;
 import 'package:codeoff/connection/pairing_payload.dart';
 import 'package:codeoff/main.dart';
 import 'package:codeoff/storage/connection_store.dart';
@@ -91,6 +95,17 @@ void main() {
 
     expect(updated.single['status'], {'type': 'active'});
     expect(original.containsKey('status'), false);
+  });
+
+  test('deep-copies nested remote maps before local mutation', () {
+    final copy = mutableRemoteValue(
+      Map<String, dynamic>.unmodifiable({
+        'status': Map<String, dynamic>.unmodifiable({'type': 'active'}),
+      }),
+    ) as Map<String, dynamic>;
+
+    copy['status']['type'] = 'idle';
+    expect(copy['status']['type'], 'idle');
   });
 
   test('remembers the last connected server first', () {

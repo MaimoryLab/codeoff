@@ -8,19 +8,36 @@ extension _ThreadSession on _RemoteHomePageState {
     if (id == null || client == null || (!force && loadedHistoryFor == id)) {
       return;
     }
+    final revision = ++historyLoadRevision;
     setState(() {
       loadingHistory = true;
       if (!force) history = [];
     });
     try {
       final value = await client.thread(id);
-      if (!mounted || selectedThread != id || !identical(api, client)) return;
+      if (!mounted ||
+          selectedThread != id ||
+          !identical(api, client) ||
+          revision != historyLoadRevision) {
+        return;
+      }
       final snapshotSummary = processingSummaryFromThread(
         value,
         AppLocalizations.of(context),
       );
       setState(() {
-        history = _historyItems(value);
+        final loaded = _historyItems(value);
+        final local = history.where((item) => item['local'] == true);
+        history = [
+          ...loaded,
+          for (final item in local)
+            if (!loaded.any(
+              (remote) =>
+                  _messageRole(remote) == 'user' &&
+                  _messageText(remote) == _messageText(item),
+            ))
+              item,
+        ];
         activeTurnId = activeTurnIdFrom(value);
         if (snapshotSummary.isNotEmpty) {
           processingSummary = snapshotSummary;
@@ -37,7 +54,9 @@ extension _ThreadSession on _RemoteHomePageState {
     } catch (error) {
       if (mounted) setState(() => message = error.toString());
     } finally {
-      if (mounted) setState(() => loadingHistory = false);
+      if (mounted && revision == historyLoadRevision) {
+        setState(() => loadingHistory = false);
+      }
     }
   }
 
@@ -53,6 +72,7 @@ extension _ThreadSession on _RemoteHomePageState {
       activeTurnId = '';
       processingSummary = '';
       processingItemId = '';
+      processingItems = [];
       history =
           historyCache[id]
               ?.map((item) => Map<String, dynamic>.from(item))

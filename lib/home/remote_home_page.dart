@@ -16,10 +16,13 @@ import '../remote/remote_connection.dart';
 import '../storage/connection_store.dart';
 import '../storage/thread_cache.dart';
 import '../connection/pairing_payload.dart';
+import '../connection/connection_settings_view.dart';
+import '../thread/view/operation_details_page.dart';
+import '../thread/view/thread_list_page.dart';
+import '../thread/view/thread_detail_page.dart';
 
 part 'home_scaffold.dart';
 part '../connection/connection_controller.dart';
-part '../connection/connection_settings_view.dart';
 part '../connection/pairing_scanner.dart';
 part '../update/app_update.dart';
 part '../thread/thread_controller.dart';
@@ -123,6 +126,8 @@ class _RemoteHomePageState extends State<RemoteHomePage>
   String activeTurnId = '';
   String processingSummary = '';
   String processingItemId = '';
+  List<Map<String, dynamic>> processingItems = [];
+  int historyLoadRevision = 0;
   bool projectsView = false;
   String message = 'Enter the desktop endpoint to begin.';
   bool busy = false;
@@ -217,7 +222,7 @@ class _RemoteHomePageState extends State<RemoteHomePage>
           ScaffoldMessenger.maybeOf(context)?.showSnackBar(
             SnackBar(content: Text(context.t('upgradeRequired'))),
           );
-        } else if (!disconnected) {
+        } else {
           ScaffoldMessenger.maybeOf(context)
               ?.showSnackBar(SnackBar(content: Text(error.toString())));
         }
@@ -248,50 +253,28 @@ class _RemoteHomePageState extends State<RemoteHomePage>
   @override
   Widget build(BuildContext context) => _homeScaffold(context);
 
+  Widget _settingsView() => ConnectionSettingsPage(
+    endpoint: endpoint,
+    busy: busy,
+    connections: connections,
+    version: widget.version,
+    onConnect: connect,
+    onScan: scanPairingCode,
+    onConnectSaved: _connectSaved,
+    onEdit: _editConnection,
+    onDelete: _deleteConnection,
+    onCheckForUpdates: () => checkForUpdate(),
+  );
+
   Widget _threadsView() {
-    final visible = _visibleThreads();
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-          child: TextField(
-            controller: search,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search),
-              hintText: context.t('searchThreads'),
-            ),
-          ),
-        ),
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _reloadThreads,
-            child: visible.isEmpty
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                    children: [
-                      SizedBox(
-                        height: 240,
-                        child: _emptyState(
-                          connected
-                              ? context.t('noThreadsYet')
-                              : context.t('connectFromSettings'),
-                          Icons.forum_outlined,
-                        ),
-                      ),
-                    ],
-                  )
-                : ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                    children: [
-                      for (final thread in visible) _threadEntry(thread),
-                    ],
-                  ),
-          ),
-        ),
-      ],
+    return ThreadListPage(
+      search: search,
+      threads: _visibleThreads(),
+      connected: connected,
+      onRefresh: _reloadThreads,
+      onSearchChanged: (_) => setState(() {}),
+      itemBuilder: _threadEntry,
+      emptyState: _emptyState,
     );
   }
 

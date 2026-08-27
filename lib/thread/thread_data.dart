@@ -37,6 +37,17 @@ List<Map<String, dynamic>> updateRemoteThread(
       thread,
 ];
 
+dynamic mutableRemoteValue(dynamic value) {
+  if (value is Map) {
+    return <String, dynamic>{
+      for (final entry in value.entries)
+        '${entry.key}': mutableRemoteValue(entry.value),
+    };
+  }
+  if (value is List) return value.map(mutableRemoteValue).toList();
+  return value;
+}
+
 DateTime remoteThreadDate(Map<String, dynamic> thread) {
   for (final key in ['updatedAt', 'lastUpdatedAt', 'createdAt', 'timestamp']) {
     final parsed = parseRemoteTimestamp(thread[key]);
@@ -90,7 +101,7 @@ String processingSummaryFromThread(dynamic value, [AppLocalizations? l10n]) {
   }
   for (final raw in items.reversed) {
     if (raw is! Map) continue;
-    final item = Map<String, dynamic>.from(raw);
+    final item = mutableRemoteValue(raw) as Map<String, dynamic>;
     if (item['type'] == 'reasoning' && item['summary'] is List) {
       final summary = (item['summary'] as List)
           .map((part) => '$part'.trim())
@@ -310,7 +321,7 @@ extension _ThreadData on _RemoteHomePageState {
     if (value is List) {
       final items = <Map<String, dynamic>>[];
       for (final raw in value.whereType<Map>()) {
-        final item = Map<String, dynamic>.from(raw);
+        final item = mutableRemoteValue(raw) as Map<String, dynamic>;
         if (item['items'] is List) {
           items.addAll(_historyItems(item['items']));
         } else if (_messageText(item).isNotEmpty) {

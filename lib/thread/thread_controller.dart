@@ -41,7 +41,7 @@ extension _ThreadController on _RemoteHomePageState {
         if (list is List) {
           pages.addAll(
             list.whereType<Map>().map(
-              (item) => Map<String, dynamic>.from(item),
+              (item) => mutableRemoteValue(item) as Map<String, dynamic>,
             ),
           );
         }
@@ -207,6 +207,19 @@ extension _ThreadController on _RemoteHomePageState {
     }
     await _run(context.t('sending'), () async {
       if (!mounted || selectedThread != id) return;
+      final localMessageId = 'local-${DateTime.now().microsecondsSinceEpoch}';
+      setState(() {
+        history = [
+          ...history,
+          {
+            'id': localMessageId,
+            'role': 'user',
+            'content': text,
+            'local': true,
+          },
+        ];
+      });
+      _cacheCurrentHistory();
       final thread = threads.firstWhere(
         (item) => _threadId(item) == id,
         orElse: () => <String, dynamic>{},
@@ -241,28 +254,40 @@ extension _ThreadController on _RemoteHomePageState {
         );
       }
       dynamic response;
-      if (active) {
-        var turnId = activeTurnId;
-        if (turnId.isEmpty) turnId = activeTurnIdFrom(await api!.thread(id));
-        if (turnId.isEmpty) {
-          throw ApiException(
-            'Unable to find the active turn. Refresh and try again.',
-            statusCode: 409,
+      try {
+        if (active) {
+          var turnId = activeTurnId;
+          if (turnId.isEmpty) turnId = activeTurnIdFrom(await api!.thread(id));
+          if (turnId.isEmpty) {
+            throw ApiException(
+              'Unable to find the active turn. Refresh and try again.',
+              statusCode: 409,
+            );
+          }
+          response = await api!.steerTurn(
+            id,
+            turnId,
+            text,
+            attachments: uploaded,
+          );
+        } else {
+          response = await api!.startTurn(
+            id,
+            text,
+            attachments: uploaded,
+            permissions: permissionMode,
           );
         }
-        response = await api!.steerTurn(
-          id,
-          turnId,
-          text,
-          attachments: uploaded,
-        );
-      } else {
-        response = await api!.startTurn(
-          id,
-          text,
-          attachments: uploaded,
-          permissions: permissionMode,
-        );
+      } catch (_) {
+        if (mounted && selectedThread == id) {
+          setState(
+            () => history = history
+                .where((item) => item['id'] != localMessageId)
+                .toList(),
+          );
+          _cacheCurrentHistory();
+        }
+        rethrow;
       }
       if (!mounted || selectedThread != id) return;
       final responseTurnId = activeTurnIdFrom(response);
@@ -271,10 +296,6 @@ extension _ThreadController on _RemoteHomePageState {
           input.clear();
           attachments = [];
         }
-        history = [
-          ...history,
-          {'role': 'user', 'content': text},
-        ];
         if (responseTurnId.isNotEmpty) activeTurnId = responseTurnId;
         message = active ? context.t('messageSent') : context.t('turnStarted');
       });
