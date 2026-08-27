@@ -87,11 +87,12 @@ extension _ThreadController on _RemoteHomePageState {
     }
   }
 
-  Future<void> createThread() async {
+  Future<void> createThread({String? cwd}) async {
     await _run(context.t('startingThread'), () async {
-      final cwd = await _selectDirectory(initialPath: selectedProject);
-      if (cwd == null) return;
-      final value = await api!.startThread(cwd: cwd);
+      final selectedCwd =
+          cwd ?? await _selectDirectory(initialPath: selectedProject);
+      if (selectedCwd == null) return;
+      final value = await api!.startThread(cwd: selectedCwd);
       final id = _idFromValue(value);
       if (mounted) setState(() => message = context.t('openingThread'));
       await _reloadThreads();

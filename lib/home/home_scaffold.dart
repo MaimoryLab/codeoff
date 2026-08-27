@@ -24,14 +24,31 @@ extension _HomeScaffold on _RemoteHomePageState {
         drawer: _drawer(context),
         appBar: AppBar(
           automaticallyImplyLeading: false,
+          leadingWidth: detail ? 104 : null,
           leading: Builder(
-            builder: (context) => IconButton(
-              tooltip: detail ? context.t('back') : context.t('menu'),
-              icon: Icon(detail ? Icons.arrow_back : Icons.menu),
-              onPressed: detail
-                  ? () => _showThreads(popRoute: false)
-                  : () => Scaffold.of(context).openDrawer(),
-            ),
+            builder: (context) {
+              final currentCwd = detail ? _threadCwd(selectedThread!) : '';
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: detail ? context.t('back') : context.t('menu'),
+                    icon: Icon(detail ? Icons.arrow_back : Icons.menu),
+                    onPressed: detail
+                        ? () => _showThreads(popRoute: false)
+                        : () => Scaffold.of(context).openDrawer(),
+                  ),
+                  if (detail)
+                    IconButton(
+                      tooltip: context.t('newThread'),
+                      onPressed: busy || currentCwd.isEmpty
+                          ? null
+                          : () => createThread(cwd: currentCwd),
+                      icon: const Icon(Icons.add_comment_outlined),
+                    ),
+                ],
+              );
+            },
           ),
           title: settingsOpen
               ? Text(context.t('settings'))
