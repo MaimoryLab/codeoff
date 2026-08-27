@@ -108,7 +108,7 @@ class _FileBrowserPageState extends State<FileBrowserPage> {
           ),
           if (current != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: TextField(
                 decoration: InputDecoration(
                   labelText: context.t('searchNames'),
