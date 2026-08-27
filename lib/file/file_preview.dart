@@ -27,7 +27,7 @@ Future<void> openRemoteFile(
   );
 }
 
-const _codeFontFamily = 'RobotoMono';
+const _codeFontFamily = 'packages/syncfusion_flutter_pdfviewer/RobotoMono';
 const _codeFontFallback = ['monospace'];
 
 class FileBrowserPage extends StatefulWidget {
