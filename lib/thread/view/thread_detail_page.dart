@@ -12,6 +12,9 @@ class ThreadDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    children: [Expanded(child: messages), composer],
+    children: [
+      Expanded(child: messages),
+      composer,
+    ],
   );
 }
