@@ -1,7 +1,37 @@
-part of '../home/remote_home_page.dart';
+import 'dart:io';
 
-extension _SettingsView on _RemoteHomePageState {
-  Widget _settingsView() => ListView(
+import 'package:flutter/material.dart';
+
+import '../i18n.dart';
+
+class ConnectionSettingsPage extends StatelessWidget {
+  const ConnectionSettingsPage({
+    required this.endpoint,
+    required this.busy,
+    required this.connections,
+    required this.version,
+    required this.onConnect,
+    required this.onScan,
+    required this.onConnectSaved,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onCheckForUpdates,
+    super.key,
+  });
+
+  final TextEditingController endpoint;
+  final bool busy;
+  final List<Map<String, String>> connections;
+  final String version;
+  final VoidCallback onConnect;
+  final VoidCallback onScan;
+  final Future<void> Function(Map<String, String>) onConnectSaved;
+  final Future<void> Function(Map<String, String>) onEdit;
+  final Future<void> Function(Map<String, String>) onDelete;
+  final Future<void> Function() onCheckForUpdates;
+
+  @override
+  Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
     children: [
       const Padding(
@@ -11,7 +41,7 @@ extension _SettingsView on _RemoteHomePageState {
           style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
         ),
       ),
-      _settingsSection(context.t('connectToDesktop'), [
+      _section(context.t('connectToDesktop'), [
         TextField(
           controller: endpoint,
           decoration: InputDecoration(
@@ -25,7 +55,7 @@ extension _SettingsView on _RemoteHomePageState {
           children: [
             Expanded(
               child: FilledButton.icon(
-                onPressed: busy ? null : connect,
+                onPressed: busy ? null : onConnect,
                 icon: const Icon(Icons.login),
                 label: Text(context.t('connect')),
               ),
@@ -33,29 +63,29 @@ extension _SettingsView on _RemoteHomePageState {
             const SizedBox(width: 8),
             IconButton.filledTonal(
               tooltip: context.t('scanPairingCode'),
-              onPressed: busy ? null : scanPairingCode,
+              onPressed: busy ? null : onScan,
               icon: const Icon(Icons.qr_code_scanner),
             ),
           ],
         ),
       ]),
-      _settingsSection(context.t('connectionHistory'), [
+      _section(context.t('connectionHistory'), [
         if (connections.isEmpty)
           Text(
             context.t('noSavedConnections'),
-            style: TextStyle(color: Colors.white54),
+            style: const TextStyle(color: Colors.white54),
           )
         else
-          for (final record in connections) _connectionEntry(record),
+          for (final record in connections) _entry(context, record),
       ]),
       if (Platform.isAndroid)
-        _settingsSection(context.t('about'), [
+        _section(context.t('about'), [
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Codeoff'),
-            subtitle: Text(context.t('version', {'version': widget.version})),
+            subtitle: Text(context.t('version', {'version': version})),
             trailing: FilledButton.icon(
-              onPressed: busy ? null : checkForUpdate,
+              onPressed: busy ? null : onCheckForUpdates,
               icon: const Icon(Icons.system_update_alt),
               label: Text(context.t('checkForUpdates')),
             ),
@@ -64,7 +94,7 @@ extension _SettingsView on _RemoteHomePageState {
     ],
   );
 
-  Widget _connectionEntry(Map<String, String> record) => ListTile(
+  Widget _entry(BuildContext context, Map<String, String> record) => ListTile(
     contentPadding: EdgeInsets.zero,
     title: Text(record['name'] ?? record['endpoint'] ?? ''),
     subtitle: Text(
@@ -77,24 +107,24 @@ extension _SettingsView on _RemoteHomePageState {
       children: [
         IconButton(
           tooltip: context.t('connect'),
-          onPressed: busy ? null : () => _connectSaved(record),
+          onPressed: busy ? null : () => onConnectSaved(record),
           icon: const Icon(Icons.login),
         ),
         IconButton(
           tooltip: context.t('edit'),
-          onPressed: busy ? null : () => _editConnection(record),
+          onPressed: busy ? null : () => onEdit(record),
           icon: const Icon(Icons.edit_outlined),
         ),
         IconButton(
           tooltip: context.t('delete'),
-          onPressed: busy ? null : () => _deleteConnection(record),
+          onPressed: busy ? null : () => onDelete(record),
           icon: const Icon(Icons.delete_outline),
         ),
       ],
     ),
   );
 
-  Widget _settingsSection(String title, List<Widget> children) => Padding(
+  Widget _section(String title, List<Widget> children) => Padding(
     padding: const EdgeInsets.only(bottom: 22),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

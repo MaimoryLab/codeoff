@@ -130,6 +130,12 @@ class AppLocalizations {
       'downloadingUpdate': 'Downloading update: {progress}%',
       'installingUpdate': 'Opening installer...',
       'updateFailed': 'Update failed',
+      'commandsCount': '{count} commands',
+      'filesCount': '{count} files',
+      'toolsCount': '{count} tools',
+      'operationDetails': 'Operation details',
+      'input': 'Input',
+      'output': 'Output',
     },
     'zh': {
       'settings': '设置',
@@ -250,6 +256,12 @@ class AppLocalizations {
       'downloadingUpdate': '正在下载更新：{progress}%',
       'installingUpdate': '正在打开安装程序...',
       'updateFailed': '更新失败',
+      'commandsCount': '{count} 条命令',
+      'filesCount': '{count} 个文件',
+      'toolsCount': '{count} 个工具',
+      'operationDetails': '操作详情',
+      'input': '输入',
+      'output': '输出',
     },
   };
 

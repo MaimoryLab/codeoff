@@ -156,6 +156,38 @@ extension _ThreadMessages on _RemoteHomePageState {
     );
   }
 
+  String _operationSummary() {
+    final commands = processingItems
+        .where((item) => item['type'] == 'commandExecution')
+        .length;
+    final files = processingItems
+        .where((item) => '${item['type'] ?? ''}'.toLowerCase().contains('file'))
+        .length;
+    final tools = processingItems
+        .where(
+          (item) =>
+              item['type'] == 'mcpToolCall' ||
+              item['type'] == 'dynamicToolCall' ||
+              item['type'] == 'collabAgentToolCall',
+        )
+        .length;
+    final parts = <String>[
+      if (commands > 0) context.t('commandsCount', {'count': '$commands'}),
+      if (files > 0) context.t('filesCount', {'count': '$files'}),
+      if (tools > 0) context.t('toolsCount', {'count': '$tools'}),
+    ];
+    return parts.isEmpty ? processingSummary : parts.join(' · ');
+  }
+
+  Future<void> _showOperationDetails() => showDialog<void>(
+    context: context,
+    builder: (_) => OperationDetailsPage(
+      items: processingItems,
+      titleBuilder: (item) =>
+          processingSummaryFromItem(item, AppLocalizations.of(context)),
+    ),
+  );
+
   Widget _processingSummary() => Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: Row(
@@ -168,9 +200,12 @@ extension _ThreadMessages on _RemoteHomePageState {
         ),
         const SizedBox(width: 8),
         Flexible(
-          child: Text(
-            processingSummary,
-            style: const TextStyle(color: Colors.white60, fontSize: 13),
+          child: InkWell(
+            onTap: processingItems.isEmpty ? null : _showOperationDetails,
+            child: Text(
+              _operationSummary(),
+              style: const TextStyle(color: Colors.white60, fontSize: 13),
+            ),
           ),
         ),
       ],
