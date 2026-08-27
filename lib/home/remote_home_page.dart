@@ -312,8 +312,15 @@ class _RemoteHomePageState extends State<RemoteHomePage>
     final snapshot = await threadCache.read(serverId);
     if (!mounted || activeConnectionId != serverId) return;
     setState(() {
-      threads = snapshot.threads;
-      historyCache = snapshot.history;
+      threads = snapshot.threads
+          .map((thread) => mutableRemoteValue(thread) as Map<String, dynamic>)
+          .toList();
+      historyCache = {
+        for (final entry in snapshot.history.entries)
+          entry.key: entry.value
+              .map((item) => mutableRemoteValue(item) as Map<String, dynamic>)
+              .toList(),
+      };
       final id = selectedThread;
       history = id == null
           ? []
