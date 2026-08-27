@@ -440,6 +440,14 @@ void main() {
       '/workspace/lib/main.dart',
     );
     expect(
+      filePathFromHref('/workspace/lib/main.dart:18'),
+      '/workspace/lib/main.dart',
+    );
+    expect(
+      filePathFromHref('lib/main.dart:18:4', cwd: '/workspace'),
+      '/workspace/lib/main.dart',
+    );
+    expect(
       filePathFromHref('lib/main.dart', cwd: '/workspace'),
       '/workspace/lib/main.dart',
     );

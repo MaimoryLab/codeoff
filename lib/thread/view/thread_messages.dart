@@ -15,17 +15,20 @@ String operationGroupKey(List<Map<String, dynamic>> items) {
   return '${first['id'] ?? first['command'] ?? first['type']}';
 }
 
+String _stripLineSuffix(String path) =>
+    path.replaceFirst(RegExp(r':\d+(?::\d+)?$'), '');
+
 String? filePathFromHref(String? href, {String cwd = ''}) {
   final raw = href?.trim() ?? '';
   if (raw.isEmpty || raw.startsWith('#')) return null;
   final uri = Uri.tryParse(raw);
   if (uri == null) return null;
   if (uri.scheme == 'file') {
-    final path = uri.toFilePath(windows: Platform.isWindows);
+    final path = _stripLineSuffix(uri.toFilePath(windows: Platform.isWindows));
     return path.isEmpty ? null : path;
   }
   if (uri.scheme.isNotEmpty) return null;
-  final path = Uri.decodeComponent(uri.path);
+  final path = _stripLineSuffix(Uri.decodeComponent(uri.path));
   if (path.isEmpty) return null;
   if (path.startsWith('/')) return path;
   final root = cwd.trim();
