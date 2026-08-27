@@ -19,19 +19,38 @@ class OperationDetailsPage extends StatelessWidget {
   final Future<void> Function(String path)? onOpenFile;
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(context.t('operationDetails')),
-    content: SizedBox(
-      width: double.maxFinite,
-      child: ListView(
-        shrinkWrap: true,
-        children: [
-          for (final item in items)
-            if (titleBuilder(item).isNotEmpty) _card(context, item),
-        ],
+  Widget build(BuildContext context) {
+    final path = _firstFilePath();
+    return AlertDialog(
+      title: Text(context.t('operationDetails')),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final item in items)
+              if (titleBuilder(item).isNotEmpty) _card(context, item),
+          ],
+        ),
       ),
-    ),
-  );
+      actions: [
+        if (path != null && onOpenFile != null)
+          TextButton.icon(
+            onPressed: () => onOpenFile!(path),
+            icon: const Icon(Icons.open_in_new),
+            label: Text(context.t('openFile')),
+          ),
+      ],
+    );
+  }
+
+  String? _firstFilePath() {
+    for (final item in items) {
+      final path = fileChangePath(item);
+      if (path != null) return path;
+    }
+    return null;
+  }
 
   Widget _card(BuildContext context, Map<String, dynamic> item) => Card(
     margin: const EdgeInsets.only(bottom: 10),
@@ -55,24 +74,10 @@ class OperationDetailsPage extends StatelessWidget {
                   'result',
                   'changes',
                 ]),
-          _openFileButton(context, item),
         ],
       ),
     ),
   );
-
-  Widget _openFileButton(BuildContext context, Map<String, dynamic> item) {
-    final path = fileChangePath(item);
-    if (path == null || onOpenFile == null) return const SizedBox.shrink();
-    return Align(
-      alignment: Alignment.centerRight,
-      child: TextButton.icon(
-        onPressed: () => onOpenFile!(path),
-        icon: const Icon(Icons.open_in_new),
-        label: Text(context.t('openFile')),
-      ),
-    );
-  }
 
   Widget _value(
     BuildContext context,
