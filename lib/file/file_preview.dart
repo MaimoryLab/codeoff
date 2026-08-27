@@ -194,18 +194,26 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
       return SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: lowerName.endsWith('.md') || lowerName.endsWith('.markdown')
-            ? MarkdownBody(
-                data: utf8.decode(file.bytes, allowMalformed: true),
-                selectable: true,
+            ? SizedBox(
+                width: double.infinity,
+                child: MarkdownBody(
+                  data: utf8.decode(file.bytes, allowMalformed: true),
+                  selectable: true,
+                ),
               )
-            : HighlightView(
-                utf8.decode(file.bytes, allowMalformed: true),
-                language: _language(lowerName),
-                theme: vs2015Theme,
-                padding: EdgeInsets.zero,
-                textStyle: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 13,
+            : SelectionArea(
+                child: SizedBox(
+                  width: double.infinity,
+                  child: HighlightView(
+                    utf8.decode(file.bytes, allowMalformed: true),
+                    language: _language(lowerName),
+                    theme: _transparentHighlightTheme,
+                    padding: EdgeInsets.zero,
+                    textStyle: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
               ),
       );
@@ -213,6 +221,11 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
     return Center(child: Text(context.t('previewUnavailable')));
   }
 }
+
+final _transparentHighlightTheme = {
+  ...vs2015Theme,
+  'root': vs2015Theme['root']!.copyWith(backgroundColor: Colors.transparent),
+};
 
 class _BrowserListing {
   const _BrowserListing({
