@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
@@ -16,19 +17,14 @@ Future<void> openRemoteFile(
   RemoteApi api,
   String path,
 ) async {
-  try {
-    final file = await api.downloadFile(path);
-    if (!context.mounted) return;
-    await Navigator.push<void>(
-      context,
-      MaterialPageRoute(builder: (_) => FilePreviewPage(file: file)),
-    );
-  } catch (value) {
-    if (context.mounted) {
-      ScaffoldMessenger.maybeOf(context)
-          ?.showSnackBar(SnackBar(content: Text('$value')));
-    }
-  }
+  await Navigator.push<void>(
+    context,
+    MaterialPageRoute(
+      builder: (_) => FilePreviewPage(
+        loader: (onProgress) => api.downloadFile(path, onProgress: onProgress),
+      ),
+    ),
+  );
 }
 
 const _codeFontFamily = 'RobotoMono';
@@ -135,20 +131,55 @@ class _FileBrowserPageState extends State<FileBrowserPage> {
 }
 
 class FilePreviewPage extends StatefulWidget {
-  const FilePreviewPage({required this.file, super.key});
+  const FilePreviewPage({this.file, this.loader, super.key})
+    : assert(file != null || loader != null);
 
-  final RemoteFile file;
+  final RemoteFile? file;
+  final RemoteFileLoader? loader;
 
   @override
   State<FilePreviewPage> createState() => _FilePreviewPageState();
 }
 
+typedef RemoteFileLoader = Future<RemoteFile> Function(
+  DownloadProgress? onProgress,
+);
+
 class _FilePreviewPageState extends State<FilePreviewPage> {
+  RemoteFile? file;
+  Object? error;
+  int received = 0;
+  int? total;
+
+  @override
+  void initState() {
+    super.initState();
+    file = widget.file;
+    if (file == null) unawaited(_load());
+  }
+
+  Future<void> _load() async {
+    try {
+      final loaded = await widget.loader!((value, size) {
+        if (!mounted) return;
+        setState(() {
+          received = value;
+          total = size;
+        });
+      });
+      if (mounted) setState(() => file = loaded);
+    } catch (value) {
+      if (mounted) setState(() => error = value);
+    }
+  }
+
   Future<void> _save() async {
+    final current = file;
+    if (current == null) return;
     final uri = await FilePicker.saveFile(
-      fileName: widget.file.name,
-      bytes: widget.file.bytes,
-      mimeType: widget.file.contentType,
+      fileName: current.name,
+      bytes: current.bytes,
+      mimeType: current.contentType,
     );
     if (mounted && uri != null) {
       ScaffoldMessenger.of(context)
@@ -156,63 +187,98 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
     }
   }
 
-  Future<void> _share() => SharePlus.instance.share(
-    ShareParams(
-      title: widget.file.name,
-      files: [
-        XFile.fromData(
-          widget.file.bytes,
-          name: widget.file.name,
-          mimeType: widget.file.contentType,
-        ),
-      ],
-    ),
-  );
+  Future<void> _share() {
+    final current = file;
+    if (current == null) return Future.value();
+    return SharePlus.instance.share(
+      ShareParams(
+        title: current.name,
+        files: [
+          XFile.fromData(
+            current.bytes,
+            name: current.name,
+            mimeType: current.contentType,
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(widget.file.name, overflow: TextOverflow.ellipsis),
-      actions: [
-        IconButton(
-          tooltip: context.t('save'),
-          onPressed: _save,
-          icon: const Icon(Icons.download_outlined),
+  Widget build(BuildContext context) {
+    final current = file;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          current?.name ?? context.t('loadingFile'),
+          overflow: TextOverflow.ellipsis,
         ),
-        IconButton(
-          tooltip: context.t('share'),
-          onPressed: _share,
-          icon: const Icon(Icons.share_outlined),
-        ),
-      ],
-    ),
-    body: _body(),
-  );
+        actions: [
+          IconButton(
+            tooltip: context.t('save'),
+            onPressed: current == null ? null : _save,
+            icon: const Icon(Icons.download_outlined),
+          ),
+          IconButton(
+            tooltip: context.t('share'),
+            onPressed: current == null ? null : _share,
+            icon: const Icon(Icons.share_outlined),
+          ),
+        ],
+      ),
+      body: current == null ? _loadingBody() : _body(current),
+    );
+  }
 
-  Widget _body() {
-    final file = widget.file;
-    final lowerName = file.name.toLowerCase();
-    if (file.contentType == 'application/pdf' || lowerName.endsWith('.pdf')) {
-      return SfPdfViewer.memory(file.bytes);
+  Widget _loadingBody() {
+    if (error != null) return Center(child: Text('$error'));
+    final value = total == null || total == 0 ? null : received / total!;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 320),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(context.t('loadingFile')),
+            const SizedBox(height: 12),
+            LinearProgressIndicator(value: value),
+            if (received > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(_downloadSize(received, total)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _body(RemoteFile current) {
+    final lowerName = current.name.toLowerCase();
+    if (current.contentType == 'application/pdf' ||
+        lowerName.endsWith('.pdf')) {
+      return SfPdfViewer.memory(current.bytes);
     }
-    if (file.contentType.startsWith('image/')) {
+    if (current.contentType.startsWith('image/')) {
       return InteractiveViewer(
-        child: Center(child: Image.memory(file.bytes, fit: BoxFit.contain)),
+        child: Center(child: Image.memory(current.bytes, fit: BoxFit.contain)),
       );
     }
-    if (_isText(file)) {
+    if (_isText(current)) {
       return SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: lowerName.endsWith('.md') || lowerName.endsWith('.markdown')
             ? SizedBox(
                 width: double.infinity,
                 child: MarkdownBody(
-                  data: utf8.decode(file.bytes, allowMalformed: true),
+                  data: utf8.decode(current.bytes, allowMalformed: true),
                   selectable: true,
                 ),
               )
             : _SelectableHighlight(
-                source: utf8.decode(file.bytes, allowMalformed: true),
+                source: utf8.decode(current.bytes, allowMalformed: true),
                 language: _language(lowerName),
               ),
       );
@@ -387,6 +453,10 @@ String _fileSize(int bytes) {
   if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
   return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 }
+
+String _downloadSize(int received, int? total) => total == null
+    ? _fileSize(received)
+    : '${_fileSize(received)} / ${_fileSize(total)}';
 
 IconData _fileIcon(String name) {
   final lower = name.toLowerCase();

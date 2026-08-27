@@ -72,6 +72,8 @@ class RemoteFile {
   final Uint8List bytes;
 }
 
+typedef DownloadProgress = void Function(int received, int? total);
+
 enum RemotePermissionMode {
   requestApproval('Ask for approval', 'on-request', 'user', 'workspaceWrite'),
   autoApprove('Approve for me', 'on-request', 'auto_review', 'workspaceWrite'),
@@ -210,11 +212,15 @@ class RemoteApi {
     return RemoteAttachment(name: name, path: '${value['path'] ?? ''}');
   }
 
-  Future<RemoteFile> downloadFile(String path) async {
+  Future<RemoteFile> downloadFile(
+    String path, {
+    DownloadProgress? onProgress,
+  }) async {
     final result = await _httpBytesRequest(
       'GET',
       '/api/v1/file',
       query: {'path': path.trim()},
+      onProgress: onProgress,
     );
     return RemoteFile(
       name: result.name,
@@ -359,6 +365,7 @@ class RemoteApi {
     String method,
     String path, {
     Map<String, String>? query,
+    DownloadProgress? onProgress,
   }) async {
     final client = HttpClient();
     try {
@@ -367,8 +374,12 @@ class RemoteApi {
         request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
       }
       final response = await request.close();
+      final total = response.contentLength > 0 ? response.contentLength : null;
+      var received = 0;
       final bytes = await response.fold<List<int>>([], (all, chunk) {
         all.addAll(chunk);
+        received += chunk.length;
+        onProgress?.call(received, total);
         return all;
       });
       if (response.statusCode < 200 || response.statusCode >= 300) {
