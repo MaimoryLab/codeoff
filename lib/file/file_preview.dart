@@ -252,6 +252,7 @@ class _SelectableHighlight extends StatelessWidget {
                 highlight.parse(source, language: language).nodes ?? const [],
               ),
             ),
+            textWidthBasis: TextWidthBasis.longestLine,
           ),
         ],
       ),
