@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/vs2015.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:highlight/highlight.dart' show Node, highlight;
 import 'package:share_plus/share_plus.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
@@ -201,20 +201,9 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
                   selectable: true,
                 ),
               )
-            : SelectionArea(
-                child: SizedBox(
-                  width: double.infinity,
-                  child: HighlightView(
-                    utf8.decode(file.bytes, allowMalformed: true),
-                    language: _language(lowerName),
-                    theme: _transparentHighlightTheme,
-                    padding: EdgeInsets.zero,
-                    textStyle: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
+            : _SelectableHighlight(
+                source: utf8.decode(file.bytes, allowMalformed: true),
+                language: _language(lowerName),
               ),
       );
     }
@@ -222,10 +211,57 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
   }
 }
 
-final _transparentHighlightTheme = {
-  ...vs2015Theme,
-  'root': vs2015Theme['root']!.copyWith(backgroundColor: Colors.transparent),
-};
+class _SelectableHighlight extends StatelessWidget {
+  const _SelectableHighlight({required this.source, required this.language});
+
+  final String source;
+  final String language;
+
+  @override
+  Widget build(BuildContext context) {
+    final lines = source.split('\n');
+    final width = lines.length.toString().length;
+    return SizedBox(
+      width: double.infinity,
+      child: SelectableText.rich(
+        TextSpan(
+          style: vs2015Theme['root']!.copyWith(
+            backgroundColor: Colors.transparent,
+            fontFamily: 'monospace',
+            fontSize: 13,
+          ),
+          children: [
+            for (var index = 0; index < lines.length; index++) ...[
+              TextSpan(
+                text: '${(index + 1).toString().padLeft(width)}  ',
+                style: const TextStyle(color: Colors.white38),
+              ),
+              ..._spans(
+                highlight.parse(lines[index], language: language).nodes ??
+                    const [],
+              ),
+              if (index < lines.length - 1) const TextSpan(text: '\n'),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<TextSpan> _spans(List<Node> nodes) => [
+    for (final node in nodes)
+      if (node.value != null)
+        TextSpan(
+          text: node.value,
+          style: node.className == null ? null : vs2015Theme[node.className!],
+        )
+      else if (node.children != null)
+        TextSpan(
+          children: _spans(node.children!),
+          style: node.className == null ? null : vs2015Theme[node.className!],
+        ),
+  ];
+}
 
 class _BrowserListing {
   const _BrowserListing({
