@@ -60,9 +60,17 @@ extension _ThreadMessages on _RemoteHomePageState {
                 1 -
                 activityIndex +
                 processingCount];
-        return item is _OperationGroup
-            ? _operationGroupMessage(item)
-            : _messageBubble(item as Map<String, dynamic>);
+        if (item is _OperationGroup) {
+          return KeyedSubtree(
+            key: ValueKey('operation-group-${item.key}'),
+            child: _operationGroupMessage(item),
+          );
+        }
+        final message = item as Map<String, dynamic>;
+        return KeyedSubtree(
+          key: ValueKey('message-${message['id'] ?? activityIndex}'),
+          child: _messageBubble(message),
+        );
       },
     );
   }
@@ -236,12 +244,18 @@ extension _ThreadMessages on _RemoteHomePageState {
 
   Widget _operationGroupMessage(_OperationGroup group) {
     final expanded = expandedOperationGroups.contains(group.key);
-    return Column(
-      children: [
-        _operationGroupHeader(group, expanded),
-        if (expanded)
-          for (final item in group.items) _operationMessage(item),
-      ],
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      alignment: Alignment.topCenter,
+      clipBehavior: Clip.hardEdge,
+      child: Column(
+        children: [
+          _operationGroupHeader(group, expanded),
+          if (expanded)
+            for (final item in group.items) _operationMessage(item),
+        ],
+      ),
     );
   }
 
