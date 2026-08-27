@@ -27,14 +27,20 @@ String? filePathFromHref(String? href, {String cwd = ''}) {
   if (uri.scheme.isNotEmpty) return null;
   final path = Uri.decodeComponent(uri.path);
   if (path.isEmpty) return null;
-  if (path.startsWith('/') || cwd.trim().isEmpty) {
-    return path.startsWith('/') ? path : null;
-  }
+  if (path.startsWith('/') || cwd.trim().isEmpty) return path;
   final base = cwd.endsWith('/') || cwd.endsWith('\\') ? cwd : '$cwd/';
   return Uri.file(base).resolve(path).toFilePath(windows: Platform.isWindows);
 }
 
 extension _ThreadMessages on _RemoteHomePageState {
+  String _fileLinkCwd() {
+    for (final item in history.reversed) {
+      final cwd = '${item['cwd'] ?? ''}'.trim();
+      if (cwd.isNotEmpty && cwd != 'null') return cwd;
+    }
+    return _threadCwd(selectedThread ?? '');
+  }
+
   Widget _threadMessages() {
     final pendingApprovals = approvals.where((event) {
       final threadId = approvalThreadIdFrom(event);
@@ -173,13 +179,16 @@ extension _ThreadMessages on _RemoteHomePageState {
           styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)),
           onTapLink: (_, href, _) async {
             final client = api;
-            final filePath = filePathFromHref(
-              href,
-              cwd: _threadCwd(selectedThread ?? ''),
-            );
+            final fallbackPath = filePathFromHref(href);
+            final filePath = filePathFromHref(href, cwd: _fileLinkCwd());
             if (filePath != null) {
               if (client != null) {
-                await openRemoteFile(context, client, filePath);
+                await openRemoteFile(
+                  context,
+                  client,
+                  filePath,
+                  fallbackPath: fallbackPath,
+                );
               }
               return;
             }

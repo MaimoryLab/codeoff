@@ -14,21 +14,38 @@ import '../remote/remote_api.dart';
 Future<void> openRemoteFile(
   BuildContext context,
   RemoteApi api,
-  String path,
-) async {
+  String path, {
+  String? fallbackPath,
+}) async {
+  RemoteFile? file;
+  Object? error;
   try {
-    final file = await api.downloadFile(path);
-    if (!context.mounted) return;
-    await Navigator.push<void>(
-      context,
-      MaterialPageRoute(builder: (_) => FilePreviewPage(file: file)),
-    );
+    file = await api.downloadFile(path);
   } catch (value) {
-    if (context.mounted) {
-      ScaffoldMessenger.maybeOf(context)
-          ?.showSnackBar(SnackBar(content: Text('$value')));
+    error = value;
+    if (value is ApiException &&
+        value.statusCode == 404 &&
+        fallbackPath != null &&
+        fallbackPath != path) {
+      try {
+        file = await api.downloadFile(fallbackPath);
+      } catch (_) {
+        // Keep the original absolute-path error for the user.
+      }
     }
   }
+  if (file == null) {
+    if (context.mounted) {
+      ScaffoldMessenger.maybeOf(context)
+          ?.showSnackBar(SnackBar(content: Text('$error')));
+    }
+    return;
+  }
+  if (!context.mounted) return;
+  await Navigator.push<void>(
+    context,
+    MaterialPageRoute(builder: (_) => FilePreviewPage(file: file!)),
+  );
 }
 
 const _codeFontFamily = 'RobotoMono';
