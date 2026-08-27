@@ -89,7 +89,7 @@ extension _ThreadController on _RemoteHomePageState {
 
   Future<void> createThread() async {
     await _run(context.t('startingThread'), () async {
-      final cwd = await _selectDirectory();
+      final cwd = await _selectDirectory(initialPath: selectedProject);
       if (cwd == null) return;
       final value = await api!.startThread(cwd: cwd);
       final id = _idFromValue(value);
@@ -99,10 +99,12 @@ extension _ThreadController on _RemoteHomePageState {
     });
   }
 
-  Future<String?> _selectDirectory() async {
+  Future<String?> _selectDirectory({String? initialPath}) async {
     final client = api;
     if (client == null) throw ApiException('Not connected');
-    var listing = _DirectoryListing.from(await client.directories());
+    var listing = _DirectoryListing.from(
+      await client.directories(path: initialPath),
+    );
     if (!mounted) return null;
     var loading = false;
     String? error;
