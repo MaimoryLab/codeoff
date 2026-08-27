@@ -64,7 +64,7 @@ extension _ThreadMessages on _RemoteHomePageState {
     }
     return ListView.builder(
       controller: threadScrollController,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+      padding: EdgeInsets.fromLTRB(16, 12, 16, threadConflict ? 60 : 20),
       reverse: true,
       itemCount:
           displayHistory.length + pendingApprovals.length + processingCount,
