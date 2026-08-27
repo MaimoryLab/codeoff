@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/vs2015.dart';
+import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
@@ -72,17 +73,7 @@ class _FileBrowserPageState extends State<FileBrowserPage> {
   Widget build(BuildContext context) {
     final current = listing;
     return Scaffold(
-      appBar: AppBar(
-        title: Text(context.t('workspaceFiles')),
-        actions: [
-          if (current?.parent.isNotEmpty == true)
-            IconButton(
-              tooltip: context.t('parentFolder'),
-              onPressed: loading ? null : () => _load(current!.parent),
-              icon: const Icon(Icons.arrow_upward),
-            ),
-        ],
-      ),
+      appBar: AppBar(title: Text(context.t('workspaceFiles'))),
       body: Column(
         children: [
           Padding(
@@ -102,6 +93,14 @@ class _FileBrowserPageState extends State<FileBrowserPage> {
                 ? Center(child: Text(context.t('emptyFolder')))
                 : ListView(
                     children: [
+                      if (current.parent.isNotEmpty)
+                        ListTile(
+                          leading: const Icon(
+                            Icons.drive_folder_upload_outlined,
+                          ),
+                          title: const Text('..'),
+                          onTap: () => _load(current.parent),
+                        ),
                       for (final directory in current.directories)
                         ListTile(
                           leading: const Icon(Icons.folder_outlined),
@@ -194,13 +193,21 @@ class _FilePreviewPageState extends State<FilePreviewPage> {
     if (_isText(file)) {
       return SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: HighlightView(
-          utf8.decode(file.bytes, allowMalformed: true),
-          language: _language(lowerName),
-          theme: vs2015Theme,
-          padding: EdgeInsets.zero,
-          textStyle: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-        ),
+        child: lowerName.endsWith('.md') || lowerName.endsWith('.markdown')
+            ? MarkdownBody(
+                data: utf8.decode(file.bytes, allowMalformed: true),
+                selectable: true,
+              )
+            : HighlightView(
+                utf8.decode(file.bytes, allowMalformed: true),
+                language: _language(lowerName),
+                theme: vs2015Theme,
+                padding: EdgeInsets.zero,
+                textStyle: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                ),
+              ),
       );
     }
     return Center(child: Text(context.t('previewUnavailable')));
