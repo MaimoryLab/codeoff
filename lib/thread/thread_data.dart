@@ -158,6 +158,9 @@ String processingSummaryFromItem(dynamic value, [AppLocalizations? l10n]) {
   }
 }
 
+bool isRemoteOperationItem(dynamic value) =>
+    value is Map && processingSummaryFromItem(value).isNotEmpty;
+
 String approvalThreadIdFrom(Map<String, dynamic> event) {
   final params = event['params'];
   if (params is! Map) return '';
@@ -315,8 +318,10 @@ extension _ThreadData on _RemoteHomePageState {
       for (final key in ['items', 'messages']) {
         if (value[key] is List) return _historyItems(value[key]);
       }
-      final item = Map<String, dynamic>.from(value);
-      return _messageText(item).isEmpty ? [] : [item];
+      final item = mutableRemoteValue(value) as Map<String, dynamic>;
+      return _messageText(item).isEmpty && !isRemoteOperationItem(item)
+          ? []
+          : [item];
     }
     if (value is List) {
       final items = <Map<String, dynamic>>[];
@@ -324,7 +329,8 @@ extension _ThreadData on _RemoteHomePageState {
         final item = mutableRemoteValue(raw) as Map<String, dynamic>;
         if (item['items'] is List) {
           items.addAll(_historyItems(item['items']));
-        } else if (_messageText(item).isNotEmpty) {
+        } else if (_messageText(item).isNotEmpty ||
+            isRemoteOperationItem(item)) {
           items.add(item);
         }
       }

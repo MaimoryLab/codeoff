@@ -21,12 +21,16 @@ class OperationDetailsPage extends StatelessWidget {
       width: double.maxFinite,
       child: ListView(
         shrinkWrap: true,
-        children: [for (final item in items) _card(context, item)],
+        children: [
+          for (final item in items)
+            if (titleBuilder(item).isNotEmpty) _card(context, item),
+        ],
       ),
     ),
   );
 
   Widget _card(BuildContext context, Map<String, dynamic> item) => Card(
+    margin: const EdgeInsets.only(bottom: 10),
     child: Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -37,7 +41,14 @@ class OperationDetailsPage extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
           _value(context, item, 'input', ['input', 'arguments', 'command']),
-          _value(context, item, 'output', ['output', 'result', 'changes']),
+          _value(context, item, 'output', [
+            'output',
+            'aggregatedOutput',
+            'stdout',
+            'stderr',
+            'result',
+            'changes',
+          ]),
         ],
       ),
     ),

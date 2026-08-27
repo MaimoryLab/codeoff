@@ -41,9 +41,11 @@ extension _ThreadMessages on _RemoteHomePageState {
         if (processingCount == 1 && activityIndex == 0) {
           return _processingSummary();
         }
-        return _messageBubble(
-          history[history.length - 1 - activityIndex + processingCount],
-        );
+        final item =
+            history[history.length - 1 - activityIndex + processingCount];
+        return isRemoteOperationItem(item)
+            ? _operationMessage(item)
+            : _messageBubble(item);
       },
     );
   }
@@ -155,6 +157,45 @@ extension _ThreadMessages on _RemoteHomePageState {
       ),
     );
   }
+
+  Widget _operationMessage(Map<String, dynamic> item) => Align(
+    alignment: Alignment.centerLeft,
+    child: InkWell(
+      onTap: () => showDialog<void>(
+        context: context,
+        builder: (_) => OperationDetailsPage(
+          items: [item],
+          titleBuilder: (value) =>
+              processingSummaryFromItem(value, AppLocalizations.of(context)),
+        ),
+      ),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xff292a2e),
+          border: Border.all(color: Colors.white12),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.terminal, size: 18, color: Colors.white60),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                processingSummaryFromItem(item, AppLocalizations.of(context)),
+                style: const TextStyle(color: Colors.white70),
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 18, color: Colors.white38),
+          ],
+        ),
+      ),
+    ),
+  );
 
   String _operationSummary() {
     final commands = processingItems

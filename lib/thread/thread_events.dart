@@ -86,17 +86,18 @@ extension _RemoteEvents on _RemoteHomePageState {
         item,
         AppLocalizations.of(context),
       );
-      if (summary.isNotEmpty) {
+      if (item is Map && summary.isNotEmpty) {
+        final operation = mutableRemoteValue(item) as Map<String, dynamic>;
         setState(() {
           processingSummary = summary;
-          processingItemId = '${item is Map ? item['id'] ?? '' : ''}';
-          if (item is Map) {
-            processingItems = [
-              ...processingItems.where((entry) => entry['id'] != item['id']),
-              mutableRemoteValue(item) as Map<String, dynamic>,
-            ];
-          }
+          processingItemId = '${item['id'] ?? ''}';
+          processingItems = [
+            ...processingItems.where((entry) => entry['id'] != item['id']),
+            operation,
+          ];
+          history = _recordOperation(history, operation);
         });
+        _cacheCurrentHistory();
       }
     }
     if (method == 'item/reasoning/summaryTextDelta' &&
@@ -114,13 +115,16 @@ extension _RemoteEvents on _RemoteHomePageState {
     }
     if (method == 'item/completed' && threadId == selectedThread) {
       final item = params['item'];
-      if (item is Map) {
+      if (item is Map && isRemoteOperationItem(item)) {
+        final operation = mutableRemoteValue(item) as Map<String, dynamic>;
         setState(() {
           processingItems = [
             ...processingItems.where((entry) => entry['id'] != item['id']),
-            mutableRemoteValue(item) as Map<String, dynamic>,
+            operation,
           ];
+          history = _recordOperation(history, operation);
         });
+        _cacheCurrentHistory();
       }
       final itemId = '${item is Map ? item['id'] ?? '' : ''}';
       if (itemId == processingItemId) {
@@ -137,5 +141,13 @@ extension _RemoteEvents on _RemoteHomePageState {
       _loadHistory(selectedThread, force: true);
       unawaited(_reloadThreads());
     }
+  }
+
+  List<Map<String, dynamic>> _recordOperation(
+    List<Map<String, dynamic>> items,
+    Map<String, dynamic> operation,
+  ) {
+    final id = operation['id'];
+    return [...items.where((item) => item['id'] != id), operation];
   }
 }
