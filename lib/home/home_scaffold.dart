@@ -68,18 +68,22 @@ extension _HomeScaffold on _RemoteHomePageState {
                 onPressed: busy ? null : _openFileBrowser,
                 icon: const Icon(Icons.folder_outlined),
               ),
-            Icon(
-              connected
-                  ? Icons.cloud_done
-                  : pendingConnection
-                  ? Icons.cloud_sync
-                  : Icons.cloud_off,
-              color: connected
-                  ? Colors.greenAccent
-                  : pendingConnection
-                  ? Colors.amberAccent
-                  : Colors.white38,
-              size: 20,
+            IconButton(
+              tooltip: context.t('settings'),
+              onPressed: _openSettings,
+              icon: Icon(
+                connected
+                    ? Icons.cloud_done
+                    : pendingConnection
+                    ? Icons.cloud_sync
+                    : Icons.cloud_off,
+                color: connected
+                    ? Colors.greenAccent
+                    : pendingConnection
+                    ? Colors.amberAccent
+                    : Colors.white38,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 16),
           ],
