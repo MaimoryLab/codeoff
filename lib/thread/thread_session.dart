@@ -73,6 +73,7 @@ extension _ThreadSession on _RemoteHomePageState {
       processingSummary = '';
       processingItemId = '';
       processingItems = [];
+      expandedOperationGroups.clear();
       history =
           historyCache[id]
               ?.map((item) => Map<String, dynamic>.from(item))

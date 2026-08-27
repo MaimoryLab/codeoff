@@ -1,4 +1,16 @@
+// ignore_for_file: invalid_use_of_protected_member
+
 part of '../../home/remote_home_page.dart';
+
+class _OperationGroup {
+  const _OperationGroup(this.items);
+
+  final List<Map<String, dynamic>> items;
+
+  String get key => items
+      .map((item) => '${item['id'] ?? item['command'] ?? item['type']}')
+      .join('|');
+}
 
 extension _ThreadMessages on _RemoteHomePageState {
   Widget _threadMessages() {
@@ -7,6 +19,7 @@ extension _ThreadMessages on _RemoteHomePageState {
       return threadId.isEmpty || threadId == selectedThread;
     }).toList();
     final processingCount = processingSummary.isEmpty ? 0 : 1;
+    final displayHistory = _displayHistory();
     if (loadingHistory &&
         history.isEmpty &&
         processingSummary.isEmpty &&
@@ -30,7 +43,8 @@ extension _ThreadMessages on _RemoteHomePageState {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       reverse: true,
-      itemCount: history.length + pendingApprovals.length + processingCount,
+      itemCount:
+          displayHistory.length + pendingApprovals.length + processingCount,
       itemBuilder: (context, index) {
         if (index < pendingApprovals.length) {
           return _approvalMessage(
@@ -42,12 +56,35 @@ extension _ThreadMessages on _RemoteHomePageState {
           return _processingSummary();
         }
         final item =
-            history[history.length - 1 - activityIndex + processingCount];
-        return isRemoteOperationItem(item)
-            ? _operationMessage(item)
-            : _messageBubble(item);
+            displayHistory[displayHistory.length -
+                1 -
+                activityIndex +
+                processingCount];
+        return item is _OperationGroup
+            ? _operationGroupMessage(item)
+            : _messageBubble(item as Map<String, dynamic>);
       },
     );
+  }
+
+  List<Object> _displayHistory() {
+    final result = <Object>[];
+    var operations = <Map<String, dynamic>>[];
+    void flush() {
+      if (operations.isNotEmpty) result.add(_OperationGroup(operations));
+      operations = [];
+    }
+
+    for (final item in history) {
+      if (isRemoteOperationItem(item)) {
+        operations.add(item);
+      } else {
+        flush();
+        result.add(item);
+      }
+    }
+    flush();
+    return result;
   }
 
   IconData _permissionIcon(RemotePermissionMode mode) => switch (mode) {
@@ -196,6 +233,71 @@ extension _ThreadMessages on _RemoteHomePageState {
       ),
     ),
   );
+
+  Widget _operationGroupMessage(_OperationGroup group) {
+    final expanded = expandedOperationGroups.contains(group.key);
+    return Column(
+      children: [
+        _operationGroupHeader(group, expanded),
+        if (expanded)
+          for (final item in group.items) _operationMessage(item),
+      ],
+    );
+  }
+
+  Widget _operationGroupHeader(_OperationGroup group, bool expanded) => Align(
+    alignment: Alignment.centerLeft,
+    child: InkWell(
+      onTap: () => setState(() {
+        if (expanded) {
+          expandedOperationGroups.remove(group.key);
+        } else {
+          expandedOperationGroups.add(group.key);
+        }
+      }),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xff292a2e),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.edit_outlined, size: 18, color: Colors.white60),
+            const SizedBox(width: 8),
+            Expanded(child: Text(_operationGroupSummary(group))),
+            Icon(
+              expanded ? Icons.expand_less : Icons.chevron_right,
+              color: Colors.white60,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  String _operationGroupSummary(_OperationGroup group) {
+    final commands = group.items
+        .where((item) => item['type'] == 'commandExecution')
+        .length;
+    final files = group.items
+        .where((item) => '${item['type'] ?? ''}'.toLowerCase().contains('file'))
+        .length;
+    final tools = group.items
+        .where((item) => '${item['type'] ?? ''}'.toLowerCase().contains('tool'))
+        .length;
+    final parts = <String>[
+      if (commands > 0) context.t('commandsCount', {'count': '$commands'}),
+      if (files > 0) context.t('filesCount', {'count': '$files'}),
+      if (tools > 0) context.t('toolsCount', {'count': '$tools'}),
+    ];
+    return parts.isEmpty
+        ? context.t('operationsCount', {'count': '${group.items.length}'})
+        : parts.join(' · ');
+  }
 
   String _operationSummary() {
     final commands = processingItems

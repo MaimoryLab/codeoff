@@ -136,6 +136,7 @@ class AppLocalizations {
       'operationDetails': 'Operation details',
       'input': 'Input',
       'output': 'Output',
+      'operationsCount': '{count} operations',
     },
     'zh': {
       'settings': '设置',
@@ -262,6 +263,7 @@ class AppLocalizations {
       'operationDetails': '操作详情',
       'input': '输入',
       'output': '输出',
+      'operationsCount': '{count} 项操作',
     },
   };
 

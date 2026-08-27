@@ -127,6 +127,7 @@ class _RemoteHomePageState extends State<RemoteHomePage>
   String processingSummary = '';
   String processingItemId = '';
   List<Map<String, dynamic>> processingItems = [];
+  final expandedOperationGroups = <String>{};
   int historyLoadRevision = 0;
   bool projectsView = false;
   String message = 'Enter the desktop endpoint to begin.';
