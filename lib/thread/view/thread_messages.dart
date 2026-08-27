@@ -7,9 +7,12 @@ class _OperationGroup {
 
   final List<Map<String, dynamic>> items;
 
-  String get key => items
-      .map((item) => '${item['id'] ?? item['command'] ?? item['type']}')
-      .join('|');
+  String get key => operationGroupKey(items);
+}
+
+String operationGroupKey(List<Map<String, dynamic>> items) {
+  final first = items.first;
+  return '${first['id'] ?? first['command'] ?? first['type']}';
 }
 
 extension _ThreadMessages on _RemoteHomePageState {
@@ -41,6 +44,7 @@ extension _ThreadMessages on _RemoteHomePageState {
       return _emptyState(context.t('noMessages'), Icons.chat_bubble_outline);
     }
     return ListView.builder(
+      controller: threadScrollController,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       reverse: true,
       itemCount:
@@ -93,6 +97,31 @@ extension _ThreadMessages on _RemoteHomePageState {
     }
     flush();
     return result;
+  }
+
+  void _updateFollowingExpandedOperationGroup(VoidCallback update) {
+    final key = _expandedLatestOperationGroupKey();
+    setState(update);
+    if (key == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          !threadScrollController.hasClients ||
+          _expandedLatestOperationGroupKey() != key) {
+        return;
+      }
+      threadScrollController.animateTo(
+        threadScrollController.position.minScrollExtent,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  String? _expandedLatestOperationGroupKey() {
+    final items = _displayHistory();
+    if (items.isEmpty || items.last is! _OperationGroup) return null;
+    final key = (items.last as _OperationGroup).key;
+    return expandedOperationGroups.contains(key) ? key : null;
   }
 
   IconData _permissionIcon(RemotePermissionMode mode) => switch (mode) {

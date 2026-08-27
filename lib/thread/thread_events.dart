@@ -88,7 +88,7 @@ extension _RemoteEvents on _RemoteHomePageState {
       );
       if (item is Map && summary.isNotEmpty) {
         final operation = mutableRemoteValue(item) as Map<String, dynamic>;
-        setState(() {
+        _updateFollowingExpandedOperationGroup(() {
           processingSummary = summary;
           processingItemId = '${item['id'] ?? ''}';
           processingItems = [
@@ -117,7 +117,7 @@ extension _RemoteEvents on _RemoteHomePageState {
       final item = params['item'];
       if (item is Map && isRemoteOperationItem(item)) {
         final operation = mutableRemoteValue(item) as Map<String, dynamic>;
-        setState(() {
+        _updateFollowingExpandedOperationGroup(() {
           processingItems = [
             ...processingItems.where((entry) => entry['id'] != item['id']),
             operation,
@@ -148,6 +148,8 @@ extension _RemoteEvents on _RemoteHomePageState {
     Map<String, dynamic> operation,
   ) {
     final id = operation['id'];
-    return [...items.where((item) => item['id'] != id), operation];
+    final index = items.indexWhere((item) => item['id'] == id);
+    if (index < 0) return [...items, operation];
+    return [...items]..[index] = operation;
   }
 }

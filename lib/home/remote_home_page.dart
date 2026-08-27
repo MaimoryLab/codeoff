@@ -110,6 +110,7 @@ class _RemoteHomePageState extends State<RemoteHomePage>
   final accessToken = TextEditingController();
   final input = TextEditingController();
   final search = TextEditingController();
+  final threadScrollController = ScrollController();
   late final connectionStore = widget.connectionStore;
   late final remoteConnection = widget.remoteConnection;
   late final threadCache = widget.threadCache;
@@ -175,7 +176,13 @@ class _RemoteHomePageState extends State<RemoteHomePage>
     historyRefreshTimer?.cancel();
     statusSubscription.cancel();
     eventSubscription.cancel();
-    for (final controller in [endpoint, accessToken, input, search]) {
+    for (final controller in [
+      endpoint,
+      accessToken,
+      input,
+      search,
+      threadScrollController,
+    ]) {
       controller.dispose();
     }
     super.dispose();

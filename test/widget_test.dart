@@ -9,6 +9,7 @@ import 'package:codeoff/api.dart';
 import 'package:codeoff/home/remote_home_page.dart'
     show
         mutableRemoteValue,
+        operationGroupKey,
         parseGitHubRelease,
         startPeriodicRefresh,
         updateRemoteThread;
@@ -106,6 +107,17 @@ void main() {
 
     copy['status']['type'] = 'idle';
     expect(copy['status']['type'], 'idle');
+  });
+
+  test('keeps an operation group key stable when items are appended', () {
+    final items = <Map<String, dynamic>>[
+      {'id': 'first', 'type': 'commandExecution'},
+    ];
+    final key = operationGroupKey(items);
+
+    items.add({'id': 'second', 'type': 'fileChange'});
+
+    expect(operationGroupKey(items), key);
   });
 
   test('remembers the last connected server first', () {

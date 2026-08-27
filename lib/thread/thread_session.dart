@@ -25,7 +25,7 @@ extension _ThreadSession on _RemoteHomePageState {
         value,
         AppLocalizations.of(context),
       );
-      setState(() {
+      _updateFollowingExpandedOperationGroup(() {
         final loaded = _historyItems(value);
         final local = history.where((item) => item['local'] == true);
         history = [
