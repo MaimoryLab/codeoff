@@ -42,7 +42,8 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             args+=(--build-name "${GITHUB_REF_NAME#v}" --build-number "$GITHUB_RUN_NUMBER")
           fi
-          sed -i -e '/maven.aliyun.com/d' -e '/maven {$/,/^        }$/d' android/settings.gradle.kts android/build.gradle.kts
+          sed -i -e '/maven.aliyun.com/d' android/settings.gradle.kts android/build.gradle.kts
+          sed -i -e 's/storage.flutter-io.cn/storage.googleapis.com/g' android/settings.gradle.kts android/build.gradle.kts
           flutter build apk --target-platform android-arm64 --release "${args[@]}"
       - uses: actions/upload-artifact@v7
         with:
