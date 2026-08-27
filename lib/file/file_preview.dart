@@ -25,9 +25,8 @@ Future<void> openRemoteFile(
     );
   } catch (value) {
     if (context.mounted) {
-      ScaffoldMessenger.maybeOf(
-        context,
-      )?.showSnackBar(SnackBar(content: Text('$value')));
+      ScaffoldMessenger.maybeOf(context)
+          ?.showSnackBar(SnackBar(content: Text('$value')));
     }
   }
 }
@@ -241,10 +240,12 @@ class _SelectableHighlight extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: lineNumberWidth * 8.0,
+                  width: lineNumberWidth * 10.0 + 4,
                   child: Text(
                     (index + 1).toString().padLeft(lineNumberWidth),
                     textAlign: TextAlign.right,
+                    maxLines: 1,
+                    softWrap: false,
                     style: const TextStyle(
                       color: Colors.white38,
                       fontFamily: 'monospace',
