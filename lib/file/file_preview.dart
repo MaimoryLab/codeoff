@@ -11,6 +11,29 @@ import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../i18n.dart';
 import '../remote/remote_api.dart';
 
+Future<void> openRemoteFile(
+  BuildContext context,
+  RemoteApi api,
+  String path,
+) async {
+  try {
+    final file = await api.downloadFile(path);
+    if (!context.mounted) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(builder: (_) => FilePreviewPage(file: file)),
+    );
+  } catch (value) {
+    if (context.mounted) {
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text('$value')));
+    }
+  }
+}
+
+const _codeFontFallback = ['Menlo', 'Consolas', 'Courier New'];
+
 class FileBrowserPage extends StatefulWidget {
   const FileBrowserPage({required this.api, required this.path, super.key});
 
@@ -53,20 +76,7 @@ class _FileBrowserPageState extends State<FileBrowserPage> {
   }
 
   Future<void> _openFile(String filePath) async {
-    try {
-      final file = await widget.api.downloadFile(filePath);
-      if (mounted) {
-        await Navigator.push<void>(
-          context,
-          MaterialPageRoute(builder: (_) => FilePreviewPage(file: file)),
-        );
-      }
-    } catch (value) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('$value')));
-      }
-    }
+    await openRemoteFile(context, widget.api, filePath);
   }
 
   @override
@@ -238,6 +248,7 @@ class _SelectableHighlight extends StatelessWidget {
                     style: const TextStyle(
                       color: Colors.white38,
                       fontFamily: 'monospace',
+                      fontFamilyFallback: _codeFontFallback,
                       fontSize: 13,
                     ),
                   ),
@@ -249,6 +260,7 @@ class _SelectableHighlight extends StatelessWidget {
                       style: vs2015Theme['root']!.copyWith(
                         backgroundColor: Colors.transparent,
                         fontFamily: 'monospace',
+                        fontFamilyFallback: _codeFontFallback,
                         fontSize: 13,
                       ),
                       children: _spans(
