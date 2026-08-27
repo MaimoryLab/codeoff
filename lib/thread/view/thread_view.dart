@@ -187,7 +187,22 @@ extension _ThreadView on _RemoteHomePageState {
   bool get _canEditThread => threadOwned && !threadClaiming;
 
   Widget _threadView() => ThreadDetailPage(
-    messages: _threadMessages(),
+    messages: Stack(
+      fit: StackFit.expand,
+      children: [
+        _threadMessages(),
+        if (threadConflict)
+          Positioned(
+            right: 12,
+            bottom: 8,
+            child: FilledButton.tonalIcon(
+              onPressed: busy ? null : _takeOverThread,
+              icon: const Icon(Icons.lock_open),
+              label: Text(context.t('takeOver')),
+            ),
+          ),
+      ],
+    ),
     composer: _threadComposer(),
   );
 
@@ -197,18 +212,6 @@ extension _ThreadView on _RemoteHomePageState {
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
       child: Column(
         children: [
-          if (threadConflict)
-            Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: FilledButton.tonalIcon(
-                  onPressed: busy ? null : _takeOverThread,
-                  icon: const Icon(Icons.lock_open),
-                  label: Text(context.t('takeOver')),
-                ),
-              ),
-            ),
           if (attachments.isNotEmpty)
             Align(
               alignment: Alignment.centerLeft,
