@@ -31,7 +31,8 @@ Future<void> openRemoteFile(
   }
 }
 
-const _codeFontFallback = ['Menlo', 'Consolas', 'Courier New'];
+const _codeFontFamily = 'RobotoMono';
+const _codeFontFallback = ['monospace'];
 
 class FileBrowserPage extends StatefulWidget {
   const FileBrowserPage({required this.api, required this.path, super.key});
@@ -248,7 +249,7 @@ class _SelectableHighlight extends StatelessWidget {
                     softWrap: false,
                     style: const TextStyle(
                       color: Colors.white38,
-                      fontFamily: 'monospace',
+                      fontFamily: _codeFontFamily,
                       fontFamilyFallback: _codeFontFallback,
                       fontSize: 13,
                     ),
@@ -260,7 +261,7 @@ class _SelectableHighlight extends StatelessWidget {
                     TextSpan(
                       style: vs2015Theme['root']!.copyWith(
                         backgroundColor: Colors.transparent,
-                        fontFamily: 'monospace',
+                        fontFamily: _codeFontFamily,
                         fontFamilyFallback: _codeFontFallback,
                         fontSize: 13,
                       ),
