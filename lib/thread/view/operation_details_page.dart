@@ -93,15 +93,15 @@ class OperationDetailsPage extends StatelessWidget {
     if (command.isNotEmpty) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        children: [Text('${context.t(label)}:'), _codeBlock(command, 'shell')],
+      );
+    }
+    if (label == 'output' && item['type'] == 'commandExecution') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('${context.t(label)}:'),
-          HighlightView(
-            command,
-            language: 'shell',
-            theme: vs2015Theme,
-            padding: const EdgeInsets.all(8),
-            textStyle: const TextStyle(fontFamily: 'monospace'),
-          ),
+          _codeBlock(value, 'plaintext'),
         ],
       );
     }
@@ -114,14 +114,18 @@ class OperationDetailsPage extends StatelessWidget {
   Widget _diff(Map<String, dynamic> item) {
     final diff = fileChangeDiff(item);
     if (diff.isEmpty) return const SizedBox.shrink();
-    return HighlightView(
-      diff,
-      language: 'diff',
+    return _codeBlock(diff, 'diff');
+  }
+
+  Widget _codeBlock(String source, String language) => SelectionArea(
+    child: HighlightView(
+      source,
+      language: language,
       theme: vs2015Theme,
       padding: const EdgeInsets.all(8),
       textStyle: const TextStyle(fontFamily: 'monospace'),
-    );
-  }
+    ),
+  );
 
   String _find(Map<String, dynamic> item, List<String> keys) {
     for (final key in keys) {
