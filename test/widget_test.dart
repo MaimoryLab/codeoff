@@ -11,11 +11,14 @@ import 'package:codeoff/home/remote_home_page.dart'
         mutableRemoteValue,
         operationGroupKey,
         parseGitHubRelease,
+        filePathFromHref,
         startPeriodicRefresh,
         updateRemoteThread;
 import 'package:codeoff/connection/pairing_payload.dart';
 import 'package:codeoff/main.dart';
 import 'package:codeoff/storage/connection_store.dart';
+import 'package:codeoff/thread/view/operation_details_page.dart'
+    show fileChangePath;
 
 const _testVersion = '1.1.0';
 
@@ -429,6 +432,27 @@ void main() {
     expect(externalHttpUri('http://example.com'), isNotNull);
     expect(externalHttpUri('javascript:alert(1)'), isNull);
     expect(externalHttpUri('/relative'), isNull);
+  });
+
+  test('resolves Markdown file links and file change paths', () {
+    expect(
+      filePathFromHref('file:///workspace/lib/main.dart'),
+      '/workspace/lib/main.dart',
+    );
+    expect(
+      filePathFromHref('lib/main.dart', cwd: '/workspace'),
+      '/workspace/lib/main.dart',
+    );
+    expect(filePathFromHref('#section', cwd: '/workspace'), isNull);
+    expect(
+      fileChangePath({
+        'type': 'fileChange',
+        'changes': [
+          {'path': '/workspace/lib/main.dart'},
+        ],
+      }),
+      '/workspace/lib/main.dart',
+    );
   });
 
   test('summarizes reasoning and tool items', () {

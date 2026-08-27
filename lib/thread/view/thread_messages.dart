@@ -15,6 +15,25 @@ String operationGroupKey(List<Map<String, dynamic>> items) {
   return '${first['id'] ?? first['command'] ?? first['type']}';
 }
 
+String? filePathFromHref(String? href, {String cwd = ''}) {
+  final raw = href?.trim() ?? '';
+  if (raw.isEmpty || raw.startsWith('#')) return null;
+  final uri = Uri.tryParse(raw);
+  if (uri == null) return null;
+  if (uri.scheme == 'file') {
+    final path = uri.toFilePath(windows: Platform.isWindows);
+    return path.isEmpty ? null : path;
+  }
+  if (uri.scheme.isNotEmpty) return null;
+  final path = Uri.decodeComponent(uri.path);
+  if (path.isEmpty) return null;
+  if (path.startsWith('/') || cwd.trim().isEmpty) {
+    return path.startsWith('/') ? path : null;
+  }
+  final base = cwd.endsWith('/') || cwd.endsWith('\\') ? cwd : '$cwd/';
+  return Uri.file(base).resolve(path).toFilePath(windows: Platform.isWindows);
+}
+
 extension _ThreadMessages on _RemoteHomePageState {
   Widget _threadMessages() {
     final pendingApprovals = approvals.where((event) {
@@ -153,6 +172,17 @@ extension _ThreadMessages on _RemoteHomePageState {
           selectable: true,
           styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)),
           onTapLink: (_, href, _) async {
+            final client = api;
+            final filePath = filePathFromHref(
+              href,
+              cwd: _threadCwd(selectedThread ?? ''),
+            );
+            if (filePath != null) {
+              if (client != null) {
+                await openRemoteFile(context, client, filePath);
+              }
+              return;
+            }
             final uri = externalHttpUri(href);
             if (uri == null) return;
             try {
@@ -241,6 +271,9 @@ extension _ThreadMessages on _RemoteHomePageState {
           items: [item],
           titleBuilder: (value) =>
               processingSummaryFromItem(value, AppLocalizations.of(context)),
+          onOpenFile: api == null
+              ? null
+              : (path) => openRemoteFile(context, api!, path),
         ),
       ),
       borderRadius: BorderRadius.circular(8),
@@ -371,6 +404,9 @@ extension _ThreadMessages on _RemoteHomePageState {
       items: processingItems,
       titleBuilder: (item) =>
           processingSummaryFromItem(item, AppLocalizations.of(context)),
+      onOpenFile: api == null
+          ? null
+          : (path) => openRemoteFile(context, api!, path),
     ),
   );
 

@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_highlight/flutter_highlight.dart';
+import 'package:flutter_highlight/themes/vs2015.dart';
 
 import '../../i18n.dart';
 
@@ -8,11 +10,13 @@ class OperationDetailsPage extends StatelessWidget {
   const OperationDetailsPage({
     required this.items,
     required this.titleBuilder,
+    this.onOpenFile,
     super.key,
   });
 
   final List<Map<String, dynamic>> items;
   final String Function(Map<String, dynamic>) titleBuilder;
+  final Future<void> Function(String path)? onOpenFile;
 
   @override
   Widget build(BuildContext context) => AlertDialog(
@@ -49,10 +53,24 @@ class OperationDetailsPage extends StatelessWidget {
             'result',
             'changes',
           ]),
+          _openFileButton(context, item),
         ],
       ),
     ),
   );
+
+  Widget _openFileButton(BuildContext context, Map<String, dynamic> item) {
+    final path = fileChangePath(item);
+    if (path == null || onOpenFile == null) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton.icon(
+        onPressed: () => onOpenFile!(path),
+        icon: const Icon(Icons.open_in_new),
+        label: Text(context.t('openFile')),
+      ),
+    );
+  }
 
   Widget _value(
     BuildContext context,
@@ -62,6 +80,24 @@ class OperationDetailsPage extends StatelessWidget {
   ) {
     final value = _find(item, keys);
     if (value.isEmpty) return const SizedBox.shrink();
+    final command = label == 'input' && item['type'] == 'commandExecution'
+        ? '${item['command'] ?? ''}'.trim()
+        : '';
+    if (command.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${context.t(label)}:'),
+          HighlightView(
+            command,
+            language: 'shell',
+            theme: vs2015Theme,
+            padding: const EdgeInsets.all(8),
+            textStyle: const TextStyle(fontFamily: 'monospace'),
+          ),
+        ],
+      );
+    }
     return SelectableText(
       '${context.t(label)}: $value',
       style: const TextStyle(fontFamily: 'monospace'),
@@ -82,4 +118,40 @@ class OperationDetailsPage extends StatelessWidget {
     }
     return '';
   }
+}
+
+String? fileChangePath(Map<String, dynamic> item) {
+  final type = '${item['type'] ?? ''}'.toLowerCase();
+  if (!type.contains('file')) return null;
+  for (final key in ['path', 'filePath', 'filename', 'file']) {
+    final path = '${item[key] ?? ''}'.trim();
+    if (path.isNotEmpty && path != 'null') return path;
+  }
+  final changes = item['changes'];
+  if (changes is List) {
+    for (final change in changes) {
+      if (change is Map) {
+        final path = '${change['path'] ?? ''}'.trim();
+        if (path.isNotEmpty && path != 'null') return path;
+      }
+    }
+  }
+  if (changes is Map) {
+    final directPath = '${changes['path'] ?? ''}'.trim();
+    if (directPath.isNotEmpty && directPath != 'null') return directPath;
+    for (final entry in changes.entries) {
+      final path = '${entry.key}'.trim();
+      if (path.isNotEmpty &&
+          path != 'null' &&
+          path != 'diff' &&
+          path != 'kind') {
+        return path;
+      }
+      if (entry.value is Map) {
+        final nestedPath = '${entry.value['path'] ?? ''}'.trim();
+        if (nestedPath.isNotEmpty && nestedPath != 'null') return nestedPath;
+      }
+    }
+  }
+  return null;
 }
