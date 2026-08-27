@@ -221,39 +221,49 @@ class _SelectableHighlight extends StatelessWidget {
   Widget build(BuildContext context) {
     final lineCount = source.split('\n').length;
     final lineNumberWidth = lineCount.toString().length;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        IgnorePointer(
-          child: Text(
-            List.generate(
-              lineCount,
-              (index) => (index + 1).toString().padLeft(lineNumberWidth),
-            ).join('\n'),
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: Colors.white38,
-              fontFamily: 'monospace',
-              fontSize: 13,
+    final lines = source.split('\n');
+    return SelectionArea(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var index = 0; index < lines.length; index++)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: lineNumberWidth * 8.0,
+                  child: Text(
+                    (index + 1).toString().padLeft(lineNumberWidth),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      color: Colors.white38,
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SelectableText.rich(
+                    TextSpan(
+                      style: vs2015Theme['root']!.copyWith(
+                        backgroundColor: Colors.transparent,
+                        fontFamily: 'monospace',
+                        fontSize: 13,
+                      ),
+                      children: _spans(
+                        highlight
+                                .parse(lines[index], language: language)
+                                .nodes ??
+                            const [],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: SelectableText.rich(
-            TextSpan(
-              style: vs2015Theme['root']!.copyWith(
-                backgroundColor: Colors.transparent,
-                fontFamily: 'monospace',
-                fontSize: 13,
-              ),
-              children: _spans(
-                highlight.parse(source, language: language).nodes ?? const [],
-              ),
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
