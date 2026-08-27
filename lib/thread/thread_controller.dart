@@ -116,6 +116,63 @@ extension _ThreadController on _RemoteHomePageState {
             }
           }
 
+          Future<void> createDirectory() async {
+            final folderNameRequired = context.t('folderNameRequired');
+            var name = '';
+            final value = await showDialog<String>(
+              context: dialogContext,
+              builder: (context) => StatefulBuilder(
+                builder: (context, setState) => AlertDialog(
+                  title: Text(context.t('createFolder')),
+                  content: TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      labelText: context.t('folderName'),
+                    ),
+                    onChanged: (next) => setState(() => name = next),
+                    onSubmitted: (_) => name.trim().isEmpty
+                        ? null
+                        : Navigator.pop(context, name.trim()),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(context.t('cancel')),
+                    ),
+                    FilledButton(
+                      onPressed: name.trim().isEmpty
+                          ? null
+                          : () => Navigator.pop(context, name.trim()),
+                      child: Text(context.t('createFolder')),
+                    ),
+                  ],
+                ),
+              ),
+            );
+            if (value == null) return;
+            if (value.trim().isEmpty) {
+              _toast(folderNameRequired);
+              return;
+            }
+            setDialogState(() {
+              loading = true;
+              error = null;
+            });
+            try {
+              await client.createDirectory(path: listing.path, name: value);
+              listing = _DirectoryListing.from(
+                await client.directories(path: listing.path),
+              );
+            } catch (value) {
+              error = value.toString();
+              _toast(error!);
+            } finally {
+              if (dialogContext.mounted) {
+                setDialogState(() => loading = false);
+              }
+            }
+          }
+
           return AlertDialog(
             title: Text(context.t('chooseStartupFolder')),
             content: SizedBox(
@@ -139,6 +196,13 @@ extension _ThreadController on _RemoteHomePageState {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
+                      ),
+                      IconButton(
+                        tooltip: context.t('createFolder'),
+                        onPressed: loading || listing.path.isEmpty
+                            ? null
+                            : createDirectory,
+                        icon: const Icon(Icons.create_new_folder_outlined),
                       ),
                     ],
                   ),

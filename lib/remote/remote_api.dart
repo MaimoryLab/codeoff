@@ -124,6 +124,14 @@ class RemoteApi {
     params: {if (path != null && path.trim().isNotEmpty) 'path': path.trim()},
   );
 
+  Future<dynamic> createDirectory({
+    required String path,
+    required String name,
+  }) => _request(
+    'directory/create',
+    params: {'path': path.trim(), 'name': name.trim()},
+  );
+
   Future<dynamic> startThread({String? cwd}) => _request(
     'thread/start',
     params: {if (cwd != null && cwd.trim().isNotEmpty) 'cwd': cwd.trim()},
