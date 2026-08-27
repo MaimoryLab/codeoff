@@ -45,14 +45,16 @@ class OperationDetailsPage extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w700),
           ),
           _value(context, item, 'input', ['input', 'arguments', 'command']),
-          _value(context, item, 'output', [
-            'output',
-            'aggregatedOutput',
-            'stdout',
-            'stderr',
-            'result',
-            'changes',
-          ]),
+          item['type'] == 'fileChange'
+              ? _diff(item)
+              : _value(context, item, 'output', [
+                  'output',
+                  'aggregatedOutput',
+                  'stdout',
+                  'stderr',
+                  'result',
+                  'changes',
+                ]),
           _openFileButton(context, item),
         ],
       ),
@@ -101,6 +103,18 @@ class OperationDetailsPage extends StatelessWidget {
     return SelectableText(
       '${context.t(label)}: $value',
       style: const TextStyle(fontFamily: 'monospace'),
+    );
+  }
+
+  Widget _diff(Map<String, dynamic> item) {
+    final diff = fileChangeDiff(item);
+    if (diff.isEmpty) return const SizedBox.shrink();
+    return HighlightView(
+      diff,
+      language: 'diff',
+      theme: vs2015Theme,
+      padding: const EdgeInsets.all(8),
+      textStyle: const TextStyle(fontFamily: 'monospace'),
     );
   }
 
@@ -154,4 +168,29 @@ String? fileChangePath(Map<String, dynamic> item) {
     }
   }
   return null;
+}
+
+String fileChangeDiff(Map<String, dynamic> item) {
+  final direct = '${item['diff'] ?? ''}'.trim();
+  if (direct.isNotEmpty && direct != 'null') return direct;
+  final changes = item['changes'];
+  final diffs = <String>[];
+  if (changes is List) {
+    for (final change in changes) {
+      if (change is Map) {
+        final diff = '${change['diff'] ?? ''}'.trim();
+        if (diff.isNotEmpty && diff != 'null') diffs.add(diff);
+      }
+    }
+  } else if (changes is Map) {
+    final directDiff = '${changes['diff'] ?? ''}'.trim();
+    if (directDiff.isNotEmpty && directDiff != 'null') diffs.add(directDiff);
+    for (final value in changes.values) {
+      if (value is Map) {
+        final diff = '${value['diff'] ?? ''}'.trim();
+        if (diff.isNotEmpty && diff != 'null') diffs.add(diff);
+      }
+    }
+  }
+  return diffs.join('\n');
 }

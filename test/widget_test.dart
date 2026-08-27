@@ -18,7 +18,7 @@ import 'package:codeoff/connection/pairing_payload.dart';
 import 'package:codeoff/main.dart';
 import 'package:codeoff/storage/connection_store.dart';
 import 'package:codeoff/thread/view/operation_details_page.dart'
-    show fileChangePath;
+    show fileChangeDiff, fileChangePath;
 
 const _testVersion = '1.1.0';
 
@@ -452,6 +452,15 @@ void main() {
         ],
       }),
       '/workspace/lib/main.dart',
+    );
+    expect(
+      fileChangeDiff({
+        'type': 'fileChange',
+        'changes': [
+          {'path': '/workspace/lib/main.dart', 'diff': '-old\n+new'},
+        ],
+      }),
+      '-old\n+new',
     );
   });
 
