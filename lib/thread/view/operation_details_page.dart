@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/vs2015.dart';
+import 'package:highlight/highlight.dart' show Node, highlight;
 
 import '../../i18n.dart';
 
@@ -117,15 +117,8 @@ class OperationDetailsPage extends StatelessWidget {
     return _codeBlock(diff, 'diff');
   }
 
-  Widget _codeBlock(String source, String language) => SelectionArea(
-    child: HighlightView(
-      source,
-      language: language,
-      theme: vs2015Theme,
-      padding: const EdgeInsets.all(8),
-      textStyle: const TextStyle(fontFamily: 'monospace'),
-    ),
-  );
+  Widget _codeBlock(String source, String language) =>
+      _SelectableCodeBlock(source: source, language: language);
 
   String _find(Map<String, dynamic> item, List<String> keys) {
     for (final key in keys) {
@@ -141,6 +134,44 @@ class OperationDetailsPage extends StatelessWidget {
     }
     return '';
   }
+}
+
+class _SelectableCodeBlock extends StatelessWidget {
+  const _SelectableCodeBlock({required this.source, required this.language});
+
+  final String source;
+  final String language;
+
+  @override
+  Widget build(BuildContext context) {
+    final root = vs2015Theme['root'] ?? const TextStyle();
+    return Container(
+      color: root.backgroundColor,
+      padding: const EdgeInsets.all(8),
+      child: SelectableText.rich(
+        TextSpan(
+          style: root.copyWith(fontFamily: 'monospace'),
+          children: _spans(
+            highlight.parse(source, language: language).nodes ?? const [],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<TextSpan> _spans(List<Node> nodes) => [
+    for (final node in nodes)
+      if (node.value != null)
+        TextSpan(
+          text: node.value,
+          style: node.className == null ? null : vs2015Theme[node.className!],
+        )
+      else if (node.children != null)
+        TextSpan(
+          children: _spans(node.children!),
+          style: node.className == null ? null : vs2015Theme[node.className!],
+        ),
+  ];
 }
 
 String? fileChangePath(Map<String, dynamic> item) {
