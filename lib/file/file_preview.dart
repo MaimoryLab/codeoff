@@ -219,31 +219,41 @@ class _SelectableHighlight extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lines = source.split('\n');
-    final width = lines.length.toString().length;
-    return SizedBox(
-      width: double.infinity,
-      child: SelectableText.rich(
-        TextSpan(
-          style: vs2015Theme['root']!.copyWith(
-            backgroundColor: Colors.transparent,
-            fontFamily: 'monospace',
-            fontSize: 13,
+    final lineCount = source.split('\n').length;
+    final lineNumberWidth = lineCount.toString().length;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          IgnorePointer(
+            child: Text(
+              List.generate(
+                lineCount,
+                (index) => (index + 1).toString().padLeft(lineNumberWidth),
+              ).join('\n'),
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: Colors.white38,
+                fontFamily: 'monospace',
+                fontSize: 13,
+              ),
+            ),
           ),
-          children: [
-            for (var index = 0; index < lines.length; index++) ...[
-              TextSpan(
-                text: '${(index + 1).toString().padLeft(width)}  ',
-                style: const TextStyle(color: Colors.white38),
+          const SizedBox(width: 12),
+          SelectableText.rich(
+            TextSpan(
+              style: vs2015Theme['root']!.copyWith(
+                backgroundColor: Colors.transparent,
+                fontFamily: 'monospace',
+                fontSize: 13,
               ),
-              ..._spans(
-                highlight.parse(lines[index], language: language).nodes ??
-                    const [],
+              children: _spans(
+                highlight.parse(source, language: language).nodes ?? const [],
               ),
-              if (index < lines.length - 1) const TextSpan(text: '\n'),
-            ],
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
