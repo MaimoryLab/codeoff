@@ -186,163 +186,160 @@ extension _ThreadView on _RemoteHomePageState {
 
   bool get _canEditThread => threadOwned && !threadClaiming;
 
-  Widget _threadView() => Column(
-    children: [
-      Expanded(child: _threadMessages()),
-      SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-          child: Column(
-            children: [
-              if (threadConflict)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: FilledButton.tonalIcon(
-                      onPressed: busy ? null : _takeOverThread,
-                      icon: const Icon(Icons.lock_open),
-                      label: Text(context.t('takeOver')),
-                    ),
-                  ),
+  Widget _threadView() => ThreadDetailPage(
+    messages: _threadMessages(),
+    composer: _threadComposer(),
+  );
+
+  Widget _threadComposer() => SafeArea(
+    top: false,
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+      child: Column(
+        children: [
+          if (threadConflict)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: FilledButton.tonalIcon(
+                  onPressed: busy ? null : _takeOverThread,
+                  icon: const Icon(Icons.lock_open),
+                  label: Text(context.t('takeOver')),
                 ),
-              if (attachments.isNotEmpty)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: [
-                      for (final attachment in attachments)
-                        InputChip(
-                          avatar: Icon(
-                            attachment.name.toLowerCase().endsWith('.png') ||
-                                    attachment.name.toLowerCase().endsWith(
-                                      '.jpg',
-                                    ) ||
-                                    attachment.name.toLowerCase().endsWith(
-                                      '.jpeg',
-                                    )
-                                ? Icons.image_outlined
-                                : Icons.insert_drive_file_outlined,
-                            size: 16,
-                          ),
-                          label: Text(
-                            attachment.name,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          onDeleted: busy || !_canEditThread
-                              ? null
-                              : () => removeAttachment(attachment),
-                        ),
-                    ],
-                  ),
-                ),
-              if (uploadingAttachments && attachments.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        context.t('uploadingAttachment', {
-                          'current': '$uploadingAttachmentIndex',
-                          'total': '${attachments.length}',
-                          'name':
-                              attachments[uploadingAttachmentIndex - 1].name,
-                        }),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white60),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text('${(attachmentProgress * 100).round()}%'),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                LinearProgressIndicator(value: attachmentProgress),
-              ],
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              ),
+            ),
+          if (attachments.isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
                 children: [
-                  PopupMenuButton<RemotePermissionMode>(
-                    enabled: !busy && _canEditThread,
-                    tooltip: _permissionLabel(permissionMode),
-                    icon: Icon(_permissionIcon(permissionMode)),
-                    onSelected: setPermissionMode,
-                    itemBuilder: (context) => [
-                      for (final mode in RemotePermissionMode.values)
-                        PopupMenuItem(
-                          value: mode,
-                          child: ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: Icon(_permissionIcon(mode)),
-                            title: Text(_permissionLabel(mode)),
-                            trailing: mode == permissionMode
-                                ? const Icon(Icons.check)
-                                : null,
-                          ),
-                        ),
-                    ],
-                  ),
-                  PopupMenuButton<FileType>(
-                    enabled: !busy && _canEditThread,
-                    tooltip: context.t('attachFileOrImage'),
-                    icon: const Icon(Icons.attach_file),
-                    onSelected: pickAttachments,
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: FileType.image,
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.image_outlined),
-                          title: Text(context.t('chooseImages')),
-                        ),
+                  for (final attachment in attachments)
+                    InputChip(
+                      avatar: Icon(
+                        attachment.name.toLowerCase().endsWith('.png') ||
+                                attachment.name.toLowerCase().endsWith(
+                                  '.jpg',
+                                ) ||
+                                attachment.name.toLowerCase().endsWith('.jpeg')
+                            ? Icons.image_outlined
+                            : Icons.insert_drive_file_outlined,
+                        size: 16,
                       ),
-                      PopupMenuItem(
-                        value: FileType.any,
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.insert_drive_file_outlined),
-                          title: Text(context.t('chooseFiles')),
-                        ),
+                      label: Text(
+                        attachment.name,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
+                      onDeleted: busy || !_canEditThread
+                          ? null
+                          : () => removeAttachment(attachment),
+                    ),
+                ],
+              ),
+            ),
+          if (uploadingAttachments && attachments.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    context.t('uploadingAttachment', {
+                      'current': '$uploadingAttachmentIndex',
+                      'total': '${attachments.length}',
+                      'name': attachments[uploadingAttachmentIndex - 1].name,
+                    }),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white60),
                   ),
-                  Expanded(
-                    child: TextField(
-                      controller: input,
-                      readOnly: !_canEditThread,
-                      minLines: 1,
-                      maxLines: 5,
-                      decoration: InputDecoration(
-                        hintText: threadClaiming
-                            ? context.t('checkingAccess')
-                            : _canEditThread
-                            ? context.t('message')
-                            : threadConflict
-                            ? context.t('activeInAnotherApp')
-                            : context.t('unableToSend'),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 13,
-                        ),
+                ),
+                const SizedBox(width: 8),
+                Text('${(attachmentProgress * 100).round()}%'),
+              ],
+            ),
+            const SizedBox(height: 4),
+            LinearProgressIndicator(value: attachmentProgress),
+          ],
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              PopupMenuButton<RemotePermissionMode>(
+                enabled: !busy && _canEditThread,
+                tooltip: _permissionLabel(permissionMode),
+                icon: Icon(_permissionIcon(permissionMode)),
+                onSelected: setPermissionMode,
+                itemBuilder: (context) => [
+                  for (final mode in RemotePermissionMode.values)
+                    PopupMenuItem(
+                      value: mode,
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(_permissionIcon(mode)),
+                        title: Text(_permissionLabel(mode)),
+                        trailing: mode == permissionMode
+                            ? const Icon(Icons.check)
+                            : null,
                       ),
                     ),
+                ],
+              ),
+              PopupMenuButton<FileType>(
+                enabled: !busy && _canEditThread,
+                tooltip: context.t('attachFileOrImage'),
+                icon: const Icon(Icons.attach_file),
+                onSelected: pickAttachments,
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: FileType.image,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.image_outlined),
+                      title: Text(context.t('chooseImages')),
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton.filled(
-                    onPressed: busy || !_canEditThread ? null : sendTurn,
-                    tooltip: context.t('send'),
-                    icon: const Icon(Icons.send),
+                  PopupMenuItem(
+                    value: FileType.any,
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.insert_drive_file_outlined),
+                      title: Text(context.t('chooseFiles')),
+                    ),
                   ),
                 ],
               ),
+              Expanded(
+                child: TextField(
+                  controller: input,
+                  readOnly: !_canEditThread,
+                  minLines: 1,
+                  maxLines: 5,
+                  decoration: InputDecoration(
+                    hintText: threadClaiming
+                        ? context.t('checkingAccess')
+                        : _canEditThread
+                        ? context.t('message')
+                        : threadConflict
+                        ? context.t('activeInAnotherApp')
+                        : context.t('unableToSend'),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 13,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filled(
+                onPressed: busy || !_canEditThread ? null : sendTurn,
+                tooltip: context.t('send'),
+                icon: const Icon(Icons.send),
+              ),
             ],
           ),
-        ),
+        ],
       ),
-    ],
+    ),
   );
 }
