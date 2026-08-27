@@ -20,6 +20,7 @@ import '../connection/connection_settings_view.dart';
 import '../thread/view/operation_details_page.dart';
 import '../thread/view/thread_list_page.dart';
 import '../thread/view/thread_detail_page.dart';
+import '../file/file_preview.dart';
 
 part 'home_scaffold.dart';
 part '../connection/connection_controller.dart';
@@ -37,11 +38,13 @@ class _DirectoryListing {
     required this.path,
     required this.parent,
     required this.directories,
+    required this.files,
   });
 
   final String path;
   final String parent;
   final List<Map<String, String>> directories;
+  final List<Map<String, dynamic>> files;
 
   factory _DirectoryListing.from(dynamic value) {
     if (value is! Map) throw ApiException('Invalid directory response');
@@ -59,6 +62,19 @@ class _DirectoryListing {
                   },
                 )
                 .where((entry) => entry['name']!.isNotEmpty)
+                .toList()
+          : const [],
+      files: value['files'] is List
+          ? (value['files'] as List)
+                .whereType<Map>()
+                .map(
+                  (entry) => <String, dynamic>{
+                    'name': '${entry['name'] ?? ''}',
+                    'path': '${entry['path'] ?? ''}',
+                    'size': entry['size'] is num ? entry['size'] : 0,
+                  },
+                )
+                .where((entry) => (entry['name'] as String).isNotEmpty)
                 .toList()
           : const [],
     );

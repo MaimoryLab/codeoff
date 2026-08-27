@@ -3,6 +3,18 @@
 part of '../home/remote_home_page.dart';
 
 extension _ThreadController on _RemoteHomePageState {
+  Future<void> _openFileBrowser() async {
+    final cwd = _threadCwd(selectedThread ?? '');
+    final client = api;
+    if (cwd.isEmpty || client == null) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FileBrowserPage(api: client, path: cwd),
+      ),
+    );
+  }
+
   Future<void> pickAttachments(FileType type) async {
     final picked = await FilePicker.pickFiles(type: type);
     if (!mounted || picked.isEmpty) return;
