@@ -78,17 +78,19 @@ class ConnectionSettingsPage extends StatelessWidget {
         else
           for (final record in connections) _entry(context, record),
       ]),
-      if (Platform.isAndroid)
+      if (Platform.isAndroid || Platform.isIOS)
         _section(context.t('about'), [
           ListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Codeoff'),
             subtitle: Text(context.t('version', {'version': version})),
-            trailing: FilledButton.icon(
-              onPressed: busy ? null : onCheckForUpdates,
-              icon: const Icon(Icons.system_update_alt),
-              label: Text(context.t('checkForUpdates')),
-            ),
+            trailing: Platform.isAndroid
+                ? FilledButton.icon(
+                    onPressed: busy ? null : onCheckForUpdates,
+                    icon: const Icon(Icons.system_update_alt),
+                    label: Text(context.t('checkForUpdates')),
+                  )
+                : null,
           ),
         ]),
     ],

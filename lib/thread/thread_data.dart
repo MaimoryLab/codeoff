@@ -150,7 +150,11 @@ String processingSummaryFromItem(dynamic value, [AppLocalizations? l10n]) {
     case 'webSearch':
       return l10n?.t('searchingWeb') ?? 'Searching the web';
     case 'fileChange':
-      return l10n?.t('applyingFileChanges') ?? 'Applying file changes';
+      final path = fileChangePath(Map<String, dynamic>.from(value));
+      final name = path?.split(RegExp(r'[/\\]')).last.trim() ?? '';
+      return name.isEmpty
+          ? l10n?.t('applyingFileChanges') ?? 'Applying file changes'
+          : l10n?.t('editedFile', {'name': name}) ?? 'Edited $name';
     case 'collabAgentToolCall':
       return l10n?.t('runningAgentTask') ?? 'Running an agent task';
     default:

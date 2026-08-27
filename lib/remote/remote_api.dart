@@ -2,10 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
-const minServerVersion = '1.0.0';
+const minServerVersion = '1.2.0';
 const _serverVersionHeader = 'X-Codeoff-Server-Version';
 const _minClientVersionHeader = 'X-Codeoff-Min-Client-Version';
 const _webSocketGuid = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
@@ -58,6 +59,20 @@ class RemoteAttachment {
   final String name;
   final String path;
 }
+
+class RemoteFile {
+  const RemoteFile({
+    required this.name,
+    required this.contentType,
+    required this.bytes,
+  });
+
+  final String name;
+  final String contentType;
+  final Uint8List bytes;
+}
+
+typedef DownloadProgress = void Function(int received, int? total);
 
 enum RemotePermissionMode {
   requestApproval('Ask for approval', 'on-request', 'user', 'workspaceWrite'),
@@ -197,6 +212,23 @@ class RemoteApi {
     return RemoteAttachment(name: name, path: '${value['path'] ?? ''}');
   }
 
+  Future<RemoteFile> downloadFile(
+    String path, {
+    DownloadProgress? onProgress,
+  }) async {
+    final result = await _httpBytesRequest(
+      'GET',
+      '/api/v1/file',
+      query: {'path': path.trim()},
+      onProgress: onProgress,
+    );
+    return RemoteFile(
+      name: result.name,
+      contentType: result.contentType,
+      bytes: result.bytes,
+    );
+  }
+
   Map<String, dynamic> _turnBody(
     String input,
     List<RemoteAttachment> attachments,
@@ -327,6 +359,53 @@ class RemoteApi {
     } finally {
       client.close(force: true);
     }
+  }
+
+  Future<RemoteFile> _httpBytesRequest(
+    String method,
+    String path, {
+    Map<String, String>? query,
+    DownloadProgress? onProgress,
+  }) async {
+    final client = HttpClient();
+    try {
+      final request = await client.openUrl(method, _uri(path, query));
+      if (token?.isNotEmpty == true) {
+        request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      }
+      final response = await request.close();
+      final total = response.contentLength > 0 ? response.contentLength : null;
+      var received = 0;
+      final bytes = await response.fold<List<int>>([], (all, chunk) {
+        all.addAll(chunk);
+        received += chunk.length;
+        onProgress?.call(received, total);
+        return all;
+      });
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        final message = utf8.decode(bytes, allowMalformed: true).trim();
+        throw ApiException(
+          message.isEmpty ? 'Request failed (${response.statusCode})' : message,
+          statusCode: response.statusCode,
+        );
+      }
+      return RemoteFile(
+        name: _filename(response.headers.value('content-disposition')),
+        contentType:
+            response.headers.contentType?.mimeType ??
+            'application/octet-stream',
+        bytes: Uint8List.fromList(bytes),
+      );
+    } on SocketException catch (error) {
+      throw ApiException(error.message);
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  String _filename(String? disposition) {
+    final match = RegExp(r'filename="?([^";]+)').firstMatch(disposition ?? '');
+    return match?.group(1) ?? 'download';
   }
 
   Future<void> _ensureConnected() {

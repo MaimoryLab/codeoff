@@ -45,6 +45,12 @@ extension _HomeScaffold on _RemoteHomePageState {
                       : _projectLabel(selectedProject!),
                 ),
           actions: [
+            if (detail && _threadCwd(selectedThread!).isNotEmpty)
+              IconButton(
+                tooltip: context.t('workspaceFiles'),
+                onPressed: busy ? null : _openFileBrowser,
+                icon: const Icon(Icons.folder_outlined),
+              ),
             Icon(
               connected
                   ? Icons.cloud_done
