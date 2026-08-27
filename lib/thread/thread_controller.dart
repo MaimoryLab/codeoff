@@ -106,6 +106,7 @@ extension _ThreadController on _RemoteHomePageState {
     if (!mounted) return null;
     var loading = false;
     String? error;
+    var query = '';
     return showDialog<String>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -114,6 +115,7 @@ extension _ThreadController on _RemoteHomePageState {
             setDialogState(() {
               loading = true;
               error = null;
+              query = '';
             });
             try {
               listing = _DirectoryListing.from(
@@ -218,6 +220,14 @@ extension _ThreadController on _RemoteHomePageState {
                       ),
                     ],
                   ),
+                  TextField(
+                    enabled: !loading,
+                    decoration: InputDecoration(
+                      labelText: context.t('searchNames'),
+                      prefixIcon: const Icon(Icons.search),
+                    ),
+                    onChanged: (value) => setDialogState(() => query = value),
+                  ),
                   if (error != null)
                     Text(
                       error!,
@@ -231,18 +241,34 @@ extension _ThreadController on _RemoteHomePageState {
                         ? const Center(child: CircularProgressIndicator())
                         : listing.directories.isEmpty
                         ? Center(child: Text(context.t('noSubfolders')))
-                        : ListView.builder(
-                            itemCount: listing.directories.length,
-                            itemBuilder: (context, index) {
-                              final directory = listing.directories[index];
-                              return ListTile(
-                                leading: const Icon(Icons.folder_outlined),
-                                title: Text(directory['name']!),
-                                trailing: const Icon(Icons.chevron_right),
-                                onTap: () => openDirectory(directory['path']!),
+                        : () {
+                            final directories = listing.directories
+                                .where(
+                                  (directory) => matchesEntryName(
+                                    directory['name']!,
+                                    query,
+                                  ),
+                                )
+                                .toList();
+                            if (directories.isEmpty) {
+                              return Center(
+                                child: Text(context.t('noMatchingEntries')),
                               );
-                            },
-                          ),
+                            }
+                            return ListView.builder(
+                              itemCount: directories.length,
+                              itemBuilder: (context, index) {
+                                final directory = directories[index];
+                                return ListTile(
+                                  leading: const Icon(Icons.folder_outlined),
+                                  title: Text(directory['name']!),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () =>
+                                      openDirectory(directory['path']!),
+                                );
+                              },
+                            );
+                          }(),
                   ),
                 ],
               ),

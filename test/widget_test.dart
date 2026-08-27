@@ -16,6 +16,7 @@ import 'package:codeoff/home/remote_home_page.dart'
         startPeriodicRefresh,
         updateRemoteThread;
 import 'package:codeoff/connection/pairing_payload.dart';
+import 'package:codeoff/file/file_preview.dart' show matchesEntryName;
 import 'package:codeoff/main.dart';
 import 'package:codeoff/storage/connection_store.dart';
 import 'package:codeoff/thread/view/operation_details_page.dart'
@@ -33,6 +34,13 @@ Future<WebSocket> upgradeWebSocket(HttpRequest request) {
 class RealHttpOverrides extends HttpOverrides {}
 
 void main() {
+  test('filters entries by the current directory name', () {
+    expect(matchesEntryName('Source', 'our'), isTrue);
+    expect(matchesEntryName('Source', 'OUR'), isTrue);
+    expect(matchesEntryName('Source', 'bin'), isFalse);
+    expect(matchesEntryName('Source', '  '), isTrue);
+  });
+
   final previousHttpOverrides = HttpOverrides.current;
   setUpAll(() => HttpOverrides.global = RealHttpOverrides());
   tearDownAll(() => HttpOverrides.global = previousHttpOverrides);

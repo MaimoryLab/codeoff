@@ -12,6 +12,11 @@ import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 import '../i18n.dart';
 import '../remote/remote_api.dart';
 
+bool matchesEntryName(String name, String query) {
+  final filter = query.trim().toLowerCase();
+  return filter.isEmpty || name.toLowerCase().contains(filter);
+}
+
 Future<void> openRemoteFile(
   BuildContext context,
   RemoteApi api,
@@ -45,6 +50,7 @@ class _FileBrowserPageState extends State<FileBrowserPage> {
   _BrowserListing? listing;
   Object? error;
   bool loading = true;
+  String query = '';
 
   @override
   void initState() {
@@ -56,6 +62,7 @@ class _FileBrowserPageState extends State<FileBrowserPage> {
     setState(() {
       loading = true;
       error = null;
+      query = '';
     });
     try {
       final value = await widget.api.directories(path: nextPath);
@@ -78,6 +85,16 @@ class _FileBrowserPageState extends State<FileBrowserPage> {
   @override
   Widget build(BuildContext context) {
     final current = listing;
+    final directories = current == null
+        ? const <_BrowserEntry>[]
+        : current.directories
+              .where((entry) => matchesEntryName(entry.name, query))
+              .toList();
+    final files = current == null
+        ? const <_BrowserFile>[]
+        : current.files
+              .where((entry) => matchesEntryName(entry.name, query))
+              .toList();
     return Scaffold(
       appBar: AppBar(title: Text(context.t('workspaceFiles'))),
       body: Column(
@@ -89,14 +106,32 @@ class _FileBrowserPageState extends State<FileBrowserPage> {
               child: Text(path, maxLines: 2, overflow: TextOverflow.ellipsis),
             ),
           ),
+          if (current != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: TextField(
+                decoration: InputDecoration(
+                  labelText: context.t('searchNames'),
+                  prefixIcon: const Icon(Icons.search),
+                ),
+                onChanged: (value) => setState(() => query = value),
+              ),
+            ),
           if (error != null)
             Padding(padding: const EdgeInsets.all(16), child: Text('$error')),
           Expanded(
             child: loading
                 ? const Center(child: CircularProgressIndicator())
-                : current == null ||
-                      (current.directories.isEmpty && current.files.isEmpty)
-                ? Center(child: Text(context.t('emptyFolder')))
+                : current == null || (directories.isEmpty && files.isEmpty)
+                ? Center(
+                    child: Text(
+                      current == null ||
+                              (current.directories.isEmpty &&
+                                  current.files.isEmpty)
+                          ? context.t('emptyFolder')
+                          : context.t('noMatchingEntries'),
+                    ),
+                  )
                 : ListView(
                     children: [
                       if (current.parent.isNotEmpty)
@@ -107,14 +142,14 @@ class _FileBrowserPageState extends State<FileBrowserPage> {
                           title: const Text('..'),
                           onTap: () => _load(current.parent),
                         ),
-                      for (final directory in current.directories)
+                      for (final directory in directories)
                         ListTile(
                           leading: const Icon(Icons.folder_outlined),
                           title: Text(directory.name),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: () => _load(directory.path),
                         ),
-                      for (final file in current.files)
+                      for (final file in files)
                         ListTile(
                           leading: Icon(_fileIcon(file.name)),
                           title: Text(file.name),
