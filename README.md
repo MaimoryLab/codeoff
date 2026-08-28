@@ -9,8 +9,11 @@
   <a href="https://github.com/MaimoryLab/codeoff/actions/workflows/build-android.yml"><img src="https://github.com/MaimoryLab/codeoff/actions/workflows/build-android.yml/badge.svg" alt="Android build"></a>
   <a href="https://github.com/MaimoryLab/codeoff/releases/latest"><img src="https://img.shields.io/github/v/release/MaimoryLab/codeoff?display_name=tag&sort=semver" alt="Latest release"></a>
   <a href="https://github.com/MaimoryLab/codeoff"><img src="https://img.shields.io/github/stars/MaimoryLab/codeoff?style=flat&label=Codeoff%20Mobile" alt="Codeoff Mobile repository"></a>
+</p>
+<p align="center">
   <a href="README.zh-CN.md">中文</a>
 </p>
+
 
 Codeoff Mobile is a Flutter client for the local Codeoff desktop bridge. Pair it with Codeoff Server to control Codex from a phone: browse threads, start or resume work, send turns, upload files, and respond to approval requests.
 

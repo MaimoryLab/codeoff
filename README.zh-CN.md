@@ -9,8 +9,11 @@
   <a href="https://github.com/MaimoryLab/codeoff/actions/workflows/build-android.yml"><img src="https://github.com/MaimoryLab/codeoff/actions/workflows/build-android.yml/badge.svg" alt="Android build"></a>
   <a href="https://github.com/MaimoryLab/codeoff/releases/latest"><img src="https://img.shields.io/github/v/release/MaimoryLab/codeoff?display_name=tag&sort=semver" alt="Latest release"></a>
   <a href="https://github.com/MaimoryLab/codeoff"><img src="https://img.shields.io/github/stars/MaimoryLab/codeoff?style=flat&label=Codeoff%20Mobile" alt="Codeoff Mobile repository"></a>
+</p>
+<p align="center">
   <a href="README.md">English</a>
 </p>
+
 
 Codeoff Mobile 是一个 Flutter 移动客户端，用于连接本地 Codeoff 桌面桥接服务。与 Codeoff Server 配对后，可以在手机上控制 Codex：浏览线程、启动或恢复任务、发送 turn、上传文件，以及处理审批请求。
 
