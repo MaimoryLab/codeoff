@@ -6,7 +6,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 
-const minServerVersion = '1.2.0';
+const minServerVersion = '1.2.2';
 const _serverVersionHeader = 'X-Codeoff-Server-Version';
 const _minClientVersionHeader = 'X-Codeoff-Min-Client-Version';
 const _webSocketGuid = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
