@@ -92,6 +92,7 @@ extension _ThreadController on _RemoteHomePageState {
       final selectedCwd =
           cwd ?? await _selectDirectory(initialPath: selectedProject);
       if (selectedCwd == null) return;
+      await _releaseSelectedThread();
       final value = await api!.startThread(cwd: selectedCwd);
       final id = _idFromValue(value);
       if (mounted) setState(() => message = context.t('openingThread'));

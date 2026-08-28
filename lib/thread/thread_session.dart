@@ -184,16 +184,19 @@ extension _ThreadSession on _RemoteHomePageState {
     historyRefreshTimer = null;
   }
 
-  void _releaseSelectedThread([String? nextThread]) {
+  Future<void>? _releaseSelectedThread([String? nextThread]) {
     final id = selectedThread;
-    if (id == null || id == nextThread) return;
+    if (id == null || id == nextThread) return null;
     notifiedThreads.remove(id);
     _stopHistoryRefresh();
     final owned = threadOwned;
     threadOwned = false;
     threadClaiming = false;
     threadConflict = false;
-    if (owned) unawaited(_releaseThread(id));
+    if (!owned) return null;
+    final release = _releaseThread(id);
+    unawaited(release);
+    return release;
   }
 
   Future<void> _takeOverThread() async {
