@@ -16,6 +16,23 @@ Codeoff Mobile is a Flutter client for the local Codeoff desktop bridge. Pair it
 
 The client talks to the bridge with Dart's standard `HttpClient` and a WebSocket session. No third-party networking or state-management package is required.
 
+## Screenshots
+
+<table align="center">
+    <tr>
+      <td><img src="docs/screenshots/recents.png" alt="Codeoff Mobile recent threads" width="603"></td>
+      <td><img src="docs/screenshots/sidebar.png" alt="Codeoff Mobile sidebar" width="603"></td>
+      <td><img src="docs/screenshots/conversation.png" alt="Codeoff Mobile conversation" width="603"></td>
+      <td><img src="docs/screenshots/workdir.png" alt="Codeoff Mobile workspace files" width="603"></td>
+    </tr>
+    <tr>
+      <td><img src="docs/screenshots/preview-code.png" alt="Codeoff Mobile code preview" width="603"></td>
+      <td><img src="docs/screenshots/preview-image.png" alt="Codeoff Mobile image preview" width="603"></td>
+      <td><img src="docs/screenshots/diff.png" alt="Codeoff Mobile diff preview" width="603"></td>
+      <td><img src="docs/screenshots/approval.png" alt="Codeoff Mobile approval request" width="603"></td>
+    </tr>
+</table>
+
 ## How it works
 
 1. Codeoff Server starts the local Codex app-server and publishes its control API through a Cloudflare Tunnel.
@@ -27,20 +44,40 @@ The client talks to the bridge with Dart's standard `HttpClient` and a WebSocket
 
 ### Use
 
-#### Android
+#### 1. Install and configure Codeoff Server
+
+Install and launch [Codeoff Server](https://github.com/MaimoryLab/codeoff-server) first:
+
+1. Install Node.js and the Codex CLI.
+2. Install `cloudflared` when the phone will connect from outside the local network; it is optional for local-network use.
+3. Start the Codex app-server in Codeoff Server. Start the Cloudflare Tunnel for remote access, or configure a custom domain when a stable URL is needed.
+4. Enable **Prevent system sleep** from the Codeoff Server menu bar item when long-running work must continue unattended.
+
+#### 2. Install Codeoff Mobile
+
+##### Android
 
 Download the latest `app-release.apk` from the [Releases](https://github.com/MaimoryLab/codeoff/releases/latest) page and install it on an Android device.
 
-#### iOS
+##### iOS
 
 Install the current build through [TestFlight](https://testflight.apple.com/join/zyAzftVb).
 
-#### Pair a device
+#### 3. Pair and connect
 
-1. Start Codeoff Server and enable its Cloudflare Tunnel.
-2. Copy the tunnel endpoint and one-time pairing code from the desktop panel.
-3. Enter both values in Codeoff Mobile and tap **Pair**.
-4. Keep the returned device token for later reconnects. The app stores it in secure device storage.
+The recommended method is QR pairing:
+
+1. In Codeoff Server, click **Bind new device**.
+2. In Codeoff Mobile, tap the QR scanner and scan the pairing QR code.
+3. The app reads the server address and one-time pairing code, pairs the device, and connects automatically.
+
+For manual pairing:
+
+1. Copy a listening address or Tunnel address and the pairing code from Codeoff Server.
+2. In Codeoff Mobile, enter the address and tap **Connect**.
+3. Enter the pairing code and device name when prompted.
+
+After pairing, the device token is stored in secure storage for later reconnects.
 
 ### Develop
 

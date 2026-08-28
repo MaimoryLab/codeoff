@@ -16,6 +16,23 @@ Codeoff Mobile 是一个 Flutter 移动客户端，用于连接本地 Codeoff �
 
 客户端使用 Dart 标准库 `HttpClient` 和 WebSocket 会话与桥接服务通信，不依赖第三方网络或状态管理框架。
 
+## 截图
+
+<table align="center">
+    <tr>
+      <td><img src="docs/screenshots/recents.png" alt="Codeoff Mobile 最近对话" width="603"></td>
+      <td><img src="docs/screenshots/sidebar.png" alt="Codeoff Mobile 侧边栏" width="603"></td>
+      <td><img src="docs/screenshots/conversation.png" alt="Codeoff Mobile 对话" width="603"></td>
+      <td><img src="docs/screenshots/workdir.png" alt="Codeoff Mobile 工作区文件" width="603"></td>
+    </tr>
+    <tr>
+      <td><img src="docs/screenshots/preview-code.png" alt="Codeoff Mobile 代码预览" width="603"></td>
+      <td><img src="docs/screenshots/preview-image.png" alt="Codeoff Mobile 图片预览" width="603"></td>
+      <td><img src="docs/screenshots/diff.png" alt="Codeoff Mobile 差异预览" width="603"></td>
+      <td><img src="docs/screenshots/approval.png" alt="Codeoff Mobile 审批请求" width="603"></td>
+    </tr>
+</table>
+
 ## 工作原理
 
 1. Codeoff Server 启动本地 Codex app-server，并通过 Cloudflare Tunnel 发布控制 API。
@@ -27,20 +44,40 @@ Codeoff Mobile 是一个 Flutter 移动客户端，用于连接本地 Codeoff �
 
 ### 使用
 
-#### Android
+#### 1. 安装并配置 Codeoff Server
+
+先安装并启动 [Codeoff Server](https://github.com/MaimoryLab/codeoff-server)：
+
+1. 安装 Node.js 和 Codex CLI。
+2. 需要从局域网外连接手机时安装 `cloudflared`；仅在局域网内使用时可以跳过。
+3. 在 Codeoff Server 中启动 Codex app-server。需要远程访问时启动 Cloudflare Tunnel；需要固定地址时再配置自定义域名。
+4. 需要让长时间运行的任务不因系统休眠中断时，在 Codeoff Server 菜单栏菜单中启用 **防止系统休眠**。
+
+#### 2. 安装 Codeoff Mobile
+
+##### Android
 
 从 [Releases](https://github.com/MaimoryLab/codeoff/releases/latest) 页面下载最新的 `app-release.apk`，并安装到 Android 设备。
 
-#### iOS
+##### iOS
 
 通过 [TestFlight](https://testflight.apple.com/join/zyAzftVb) 安装当前版本。
 
-#### 配对设备
+#### 3. 配对并连接
 
-1. 启动 Codeoff Server，并启用 Cloudflare Tunnel。
-2. 从桌面面板复制 Tunnel 地址和一次性配对码。
-3. 在 Codeoff Mobile 中输入这两项并点击 **Pair**。
-4. 保存返回的设备令牌，后续重新连接时会使用它。令牌会保存在设备安全存储中。
+推荐使用二维码配对：
+
+1. 在 Codeoff Server 中点击 **绑定新设备**。
+2. 在 Codeoff Mobile 中点击二维码扫描按钮，扫描配对二维码。
+3. 应用会自动读取服务地址和一次性配对码，完成设备配对并自动连接。
+
+手动配对：
+
+1. 从 Codeoff Server 复制监听地址或 Tunnel 地址以及配对码。
+2. 在 Codeoff Mobile 中输入地址并点击 **连接**。
+3. 按提示输入配对码和设备名称。
+
+配对完成后，设备令牌会保存在安全存储中，后续可以直接重新连接。
 
 ### 开发
 
