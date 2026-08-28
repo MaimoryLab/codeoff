@@ -220,6 +220,92 @@ String _approvalValue(dynamic value) {
   return '$value'.trim();
 }
 
+Map<String, dynamic>? approvalOperationFrom(Map<String, dynamic> event) {
+  final params = event['params'];
+  if (params is! Map) return null;
+  final method = '${event['method'] ?? ''}'.toLowerCase();
+  final type = method.contains('command')
+      ? 'commandExecution'
+      : method.contains('file') || method.contains('patch')
+      ? 'fileChange'
+      : method.contains('tool')
+      ? 'dynamicToolCall'
+      : '';
+  if (type.isEmpty) return null;
+  final itemId = '${params['itemId'] ?? ''}'.trim();
+  final requestId = '${event['id'] ?? ''}'.trim();
+  if (itemId.isEmpty && requestId.isEmpty) return null;
+  final operation = <String, dynamic>{
+    ...mutableRemoteValue(params) as Map<String, dynamic>,
+    'id': itemId.isEmpty ? 'approval-$requestId' : itemId,
+    'type': type,
+    'local': true,
+    if (type == 'commandExecution')
+      'command': _approvalValue(params['command']),
+  };
+  return isRemoteOperationItem(operation) ? operation : null;
+}
+
+List<Map<String, dynamic>> mergeRemoteHistory(
+  List<Map<String, dynamic>> current,
+  List<Map<String, dynamic>> loaded,
+) {
+  final remaining = [...loaded];
+  final merged = <Map<String, dynamic>>[];
+  for (final item in current) {
+    final id = '${item['id'] ?? ''}';
+    final index = remaining.indexWhere((remote) {
+      if (id.isNotEmpty && '${remote['id'] ?? ''}' == id) return true;
+      return item['local'] == true &&
+          _messageRole(item) == 'user' &&
+          _messageRole(remote) == 'user' &&
+          _messageText(item) == _messageText(remote);
+    });
+    if (index >= 0) {
+      merged.add(remaining.removeAt(index));
+    } else if (item['local'] == true) {
+      merged.add(item);
+    }
+  }
+  return [...merged, ...remaining];
+}
+
+String _messageRole(Map<String, dynamic> item) {
+  final value = '${item['role'] ?? item['type'] ?? ''}'.toLowerCase();
+  return value.contains('user') || value.contains('input')
+      ? 'user'
+      : 'assistant';
+}
+
+String _messageText(Map<String, dynamic> item) {
+  for (final key in [
+    'text',
+    'content',
+    'message',
+    'input',
+    'output',
+    'preview',
+  ]) {
+    final text = _contentText(item[key]);
+    if (text.isNotEmpty) return text;
+  }
+  return '';
+}
+
+String _contentText(dynamic value) {
+  if (value is String) return value.trim();
+  if (value is Map) {
+    for (final key in ['text', 'value', 'content']) {
+      final text = _contentText(value[key]);
+      if (text.isNotEmpty) return text;
+    }
+  }
+  if (value is List) {
+    return value.map(_contentText).where((text) => text.isNotEmpty).join('\n');
+  }
+  return '';
+}
+
 extension _ThreadData on _RemoteHomePageState {
   List<Map<String, dynamic>> _visibleThreads() {
     final query = search.text.trim().toLowerCase();
@@ -341,45 +427,6 @@ extension _ThreadData on _RemoteHomePageState {
       return items;
     }
     return [];
-  }
-
-  String _messageRole(Map<String, dynamic> item) {
-    final value = '${item['role'] ?? item['type'] ?? ''}'.toLowerCase();
-    return value.contains('user') || value.contains('input')
-        ? 'user'
-        : 'assistant';
-  }
-
-  String _messageText(Map<String, dynamic> item) {
-    for (final key in [
-      'text',
-      'content',
-      'message',
-      'input',
-      'output',
-      'preview',
-    ]) {
-      final text = _contentText(item[key]);
-      if (text.isNotEmpty) return text;
-    }
-    return '';
-  }
-
-  String _contentText(dynamic value) {
-    if (value is String) return value.trim();
-    if (value is Map) {
-      for (final key in ['text', 'value', 'content']) {
-        final text = _contentText(value[key]);
-        if (text.isNotEmpty) return text;
-      }
-    }
-    if (value is List) {
-      return value
-          .map(_contentText)
-          .where((text) => text.isNotEmpty)
-          .join('\n');
-    }
-    return '';
   }
 
   String _idFromValue(dynamic value) {

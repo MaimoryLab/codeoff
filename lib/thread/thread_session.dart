@@ -26,18 +26,7 @@ extension _ThreadSession on _RemoteHomePageState {
         AppLocalizations.of(context),
       );
       _updateFollowingExpandedOperationGroup(() {
-        final loaded = _historyItems(value);
-        final local = history.where((item) => item['local'] == true);
-        history = [
-          ...loaded,
-          for (final item in local)
-            if (!loaded.any(
-              (remote) =>
-                  _messageRole(remote) == 'user' &&
-                  _messageText(remote) == _messageText(item),
-            ))
-              item,
-        ];
+        history = mergeRemoteHistory(history, _historyItems(value));
         activeTurnId = activeTurnIdFrom(value);
         if (snapshotSummary.isNotEmpty) {
           processingSummary = snapshotSummary;

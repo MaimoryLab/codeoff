@@ -26,16 +26,24 @@ extension _RemoteEvents on _RemoteHomePageState {
     if (!mounted) return;
     final id = event['id'];
     final method = '${event['method'] ?? ''}';
-    if (id is int && method.contains('Approval')) {
-      setState(() {
-        approvals = [...approvals.where((item) => item['id'] != id), event];
-        message = context.t('approvalRequested');
-      });
-    }
     final params = event['params'] is Map
         ? mutableRemoteValue(event['params']) as Map<String, dynamic>
         : <String, dynamic>{};
     final threadId = '${params['threadId'] ?? ''}';
+    if (id is int && method.contains('Approval')) {
+      final operation = threadId == selectedThread
+          ? approvalOperationFrom(event)
+          : null;
+      setState(() {
+        approvals = [...approvals.where((item) => item['id'] != id), event];
+        if (operation != null &&
+            !history.any((item) => item['id'] == operation['id'])) {
+          history = [...history, operation];
+        }
+        message = context.t('approvalRequested');
+      });
+      if (operation != null) _cacheCurrentHistory();
+    }
     final status = params['status'];
     if (method == 'thread/status/changed' && status is Map) {
       setState(() {

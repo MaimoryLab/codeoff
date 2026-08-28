@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:codeoff/api.dart';
 import 'package:codeoff/home/remote_home_page.dart'
     show
+        approvalOperationFrom,
+        mergeRemoteHistory,
         mutableRemoteValue,
         operationGroupKey,
         parseGitHubRelease,
@@ -434,6 +436,36 @@ void main() {
     });
     expect(tool.kind, 'Tool');
     expect(tool.target, 'github/merge_pull_request');
+  });
+
+  test('preserves approval-only operations across history refreshes', () {
+    final operation = approvalOperationFrom({
+      'id': 0,
+      'method': 'item/commandExecution/requestApproval',
+      'params': {
+        'itemId': 'command-1',
+        'threadId': 'thread-42',
+        'command': ['ls', '/Library'],
+      },
+    })!;
+    final messages = [
+      {'id': 'message-1', 'type': 'userMessage', 'content': 'run it'},
+      {'id': 'message-2', 'type': 'agentMessage', 'text': 'done'},
+    ];
+    final merged = mergeRemoteHistory([
+      messages.first,
+      operation,
+      messages.last,
+    ], messages);
+    expect(merged.map((item) => item['id']), [
+      'message-1',
+      'command-1',
+      'message-2',
+    ]);
+    expect(operation['command'], 'ls /Library');
+
+    final completed = {...operation, 'local': false, 'status': 'completed'};
+    expect(mergeRemoteHistory([operation], [completed]), [completed]);
   });
 
   test('accepts only external HTTP links', () {
