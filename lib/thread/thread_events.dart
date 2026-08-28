@@ -2,6 +2,16 @@
 
 part of '../home/remote_home_page.dart';
 
+List<Map<String, dynamic>> recordRemoteOperation(
+  List<Map<String, dynamic>> items,
+  Map<String, dynamic> operation,
+) {
+  final local = {...operation, 'local': true};
+  final index = items.indexWhere((item) => item['id'] == operation['id']);
+  if (index < 0) return [...items, local];
+  return [...items]..[index] = local;
+}
+
 extension _RemoteEvents on _RemoteHomePageState {
   void _notifyForMessage(String threadId) {
     if (!shouldNotifyThreadMessage(threadId, selectedThread)) return;
@@ -103,7 +113,7 @@ extension _RemoteEvents on _RemoteHomePageState {
             ...processingItems.where((entry) => entry['id'] != item['id']),
             operation,
           ];
-          history = _recordOperation(history, operation);
+          history = recordRemoteOperation(history, operation);
         });
         _cacheCurrentHistory();
       }
@@ -130,7 +140,7 @@ extension _RemoteEvents on _RemoteHomePageState {
             ...processingItems.where((entry) => entry['id'] != item['id']),
             operation,
           ];
-          history = _recordOperation(history, operation);
+          history = recordRemoteOperation(history, operation);
         });
         _cacheCurrentHistory();
       }
@@ -149,15 +159,5 @@ extension _RemoteEvents on _RemoteHomePageState {
       _loadHistory(selectedThread, force: true);
       unawaited(_reloadThreads());
     }
-  }
-
-  List<Map<String, dynamic>> _recordOperation(
-    List<Map<String, dynamic>> items,
-    Map<String, dynamic> operation,
-  ) {
-    final id = operation['id'];
-    final index = items.indexWhere((item) => item['id'] == id);
-    if (index < 0) return [...items, operation];
-    return [...items]..[index] = operation;
   }
 }

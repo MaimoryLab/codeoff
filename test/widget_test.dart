@@ -15,6 +15,7 @@ import 'package:codeoff/home/remote_home_page.dart'
         parseGitHubRelease,
         parseUserMessageContent,
         filePathFromHref,
+        recordRemoteOperation,
         startPeriodicRefresh,
         updateRemoteThread;
 import 'package:codeoff/connection/pairing_payload.dart';
@@ -452,9 +453,14 @@ void main() {
       {'id': 'message-1', 'type': 'userMessage', 'content': 'run it'},
       {'id': 'message-2', 'type': 'agentMessage', 'text': 'done'},
     ];
+    final liveOperation = recordRemoteOperation([], {
+      ...operation,
+      'local': false,
+      'status': 'completed',
+    }).single;
     final merged = mergeRemoteHistory([
       messages.first,
-      operation,
+      liveOperation,
       messages.last,
     ], messages);
     expect(merged.map((item) => item['id']), [
@@ -463,9 +469,10 @@ void main() {
       'message-2',
     ]);
     expect(operation['command'], 'ls /Library');
+    expect(liveOperation['local'], isTrue);
 
     final completed = {...operation, 'local': false, 'status': 'completed'};
-    expect(mergeRemoteHistory([operation], [completed]), [completed]);
+    expect(mergeRemoteHistory([liveOperation], [completed]), [completed]);
   });
 
   test('accepts only external HTTP links', () {
