@@ -37,6 +37,8 @@ class AppLocalizations {
       'connectionRemoved': 'Connection removed',
       'pairThisDevice': 'Pair this device',
       'pairingCode': 'Pairing code',
+      'pairingCodeHelp':
+          'On the desktop, click “Pair device” to generate a pairing code.',
       'scanPairingCode': 'Scan pairing QR code',
       'invalidPairingCode': 'Invalid pairing QR code',
       'noReachableAddress': 'No server address in the QR code is reachable',
@@ -182,6 +184,7 @@ class AppLocalizations {
       'connectionRemoved': '连接已移除',
       'pairThisDevice': '配对此设备',
       'pairingCode': '配对码',
+      'pairingCodeHelp': '请在桌面端点击“配对设备”按钮生成配对码。',
       'scanPairingCode': '扫描配对二维码',
       'invalidPairingCode': '无效的配对二维码',
       'noReachableAddress': '二维码中的服务器地址均无法连接',

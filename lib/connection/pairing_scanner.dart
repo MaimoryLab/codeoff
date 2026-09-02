@@ -17,15 +17,16 @@ bool _shouldRetryTunnel(String endpoint, Object error) =>
     error.statusCode == null;
 
 extension _PairingScanner on _RemoteHomePageState {
+  Future<String?> _readPairingQrCode() => Navigator.of(context).push<String>(
+    MaterialPageRoute(builder: (_) => const _PairingScannerPage()),
+  );
+
   Future<void> scanPairingCode() async {
-    final raw = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const _PairingScannerPage()),
-    );
+    final raw = await _readPairingQrCode();
     if (!mounted || raw == null) return;
     final connecting = context.t('connecting');
     final invalidPairingCode = context.t('invalidPairingCode');
     final noReachableAddress = context.t('noReachableAddress');
-    final serverNotPaired = context.t('serverNotPaired');
     final upgradeRequired = context.t('upgradeRequired');
     final deviceName = _defaultDeviceName;
     await _run(connecting, () async {
@@ -34,7 +35,6 @@ extension _PairingScanner on _RemoteHomePageState {
           PairingPayload.parse(raw),
           deviceName: deviceName,
           noReachableAddress: noReachableAddress,
-          serverNotPaired: serverNotPaired,
           upgradeRequired: upgradeRequired,
         );
       } on FormatException {
@@ -51,15 +51,21 @@ extension _PairingScanner on _RemoteHomePageState {
     PairingPayload payload, {
     required String deviceName,
     required String noReachableAddress,
-    required String serverNotPaired,
     required String upgradeRequired,
   }) async {
     final saved = connections.where(
       (record) => record['serverId'] == payload.serverUuid,
     );
     var token = saved.isEmpty ? '' : saved.first['token'] ?? '';
+    var pairingCode = payload.pairingCode;
+    var pairingDeviceName = deviceName;
     if (token.isEmpty) {
-      if (payload.pairingCode.isEmpty) throw _PairingFailure(serverNotPaired);
+      if (pairingCode.isEmpty) {
+        final pairing = await _pairDialog();
+        if (pairing == null) return;
+        pairingCode = '${pairing['token'] ?? ''}'.trim();
+        pairingDeviceName = '${pairing['name'] ?? ''}'.trim();
+      }
       Object? lastError;
       for (final candidate in payload.endpoints) {
         final attempts = isCloudflareTunnelEndpoint(candidate)
@@ -68,7 +74,7 @@ extension _PairingScanner on _RemoteHomePageState {
         for (var attempt = 0; attempt < attempts; attempt++) {
           final client = RemoteApi(candidate, clientVersion: widget.version);
           try {
-            final value = await client.pair(payload.pairingCode, deviceName);
+            final value = await client.pair(pairingCode, pairingDeviceName);
             final server = _serverFrom(value);
             if ('${server['id'] ?? ''}' != payload.serverUuid) {
               throw const _PairingFailure('Pairing server UUID mismatch');

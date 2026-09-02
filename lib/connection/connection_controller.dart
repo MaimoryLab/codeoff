@@ -101,10 +101,38 @@ extension _ConnectionController on _RemoteHomePageState {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                context.t('pairingCodeHelp'),
+                style: Theme.of(dialogContext).textTheme.bodySmall,
+              ),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: token,
               autofocus: true,
               decoration: InputDecoration(labelText: context.t('pairingCode')),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () async {
+                  final raw = await _readPairingQrCode();
+                  if (!mounted || raw == null) return;
+                  try {
+                    final payload = PairingPayload.parse(raw);
+                    if (payload.pairingCode.isEmpty) {
+                      throw const FormatException('Pairing code is missing');
+                    }
+                    token.text = payload.pairingCode;
+                  } on FormatException {
+                    _toast(context.t('invalidPairingCode'));
+                  }
+                },
+                icon: const Icon(Icons.qr_code_scanner),
+                label: Text(context.t('scanPairingCode')),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
