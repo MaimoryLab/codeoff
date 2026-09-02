@@ -40,6 +40,18 @@ extension _RemoteEvents on _RemoteHomePageState {
         ? mutableRemoteValue(event['params']) as Map<String, dynamic>
         : <String, dynamic>{};
     final threadId = '${params['threadId'] ?? ''}';
+    if (method == 'thread/released' &&
+        threadId == selectedThread &&
+        threadConflict &&
+        !threadOwned &&
+        !threadClaiming) {
+      _stopHistoryRefresh();
+      setState(() {
+        threadConflict = true;
+        threadServerReleased = true;
+        message = context.t('threadReleasedByServer');
+      });
+    }
     if (id is int && method.contains('Approval')) {
       final operation = threadId == selectedThread
           ? approvalOperationFrom(event)

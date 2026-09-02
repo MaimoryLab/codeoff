@@ -71,6 +71,7 @@ extension _ThreadSession on _RemoteHomePageState {
       threadClaiming = !owned;
       threadOwned = owned;
       threadConflict = false;
+      threadServerReleased = false;
     });
     _loadHistory(id, force: true);
     if (!owned) _claimThread(id);
@@ -144,6 +145,7 @@ extension _ThreadSession on _RemoteHomePageState {
         threadClaiming = false;
         threadOwned = true;
         threadConflict = false;
+        threadServerReleased = false;
       });
       _stopHistoryRefresh();
     } catch (error) {
@@ -193,6 +195,7 @@ extension _ThreadSession on _RemoteHomePageState {
     threadOwned = false;
     threadClaiming = false;
     threadConflict = false;
+    threadServerReleased = false;
     if (!owned) return null;
     final release = _releaseThread(id);
     unawaited(release);
@@ -229,6 +232,23 @@ extension _ThreadSession on _RemoteHomePageState {
       setState(() {
         threadOwned = true;
         threadConflict = false;
+        message = context.t('threadTakenOver');
+      });
+      _stopHistoryRefresh();
+      await _loadHistory(id, force: true);
+    });
+  }
+
+  Future<void> _continueReleasedThread() async {
+    final id = selectedThread;
+    if (id == null || !threadServerReleased) return;
+    await _run(context.t('continuing'), () async {
+      await api!.resumeThread(id);
+      if (!mounted || selectedThread != id) return;
+      setState(() {
+        threadOwned = true;
+        threadConflict = false;
+        threadServerReleased = false;
         message = context.t('threadTakenOver');
       });
       _stopHistoryRefresh();

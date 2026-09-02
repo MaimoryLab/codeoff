@@ -195,10 +195,32 @@ extension _ThreadView on _RemoteHomePageState {
           Positioned(
             right: 12,
             bottom: 8,
-            child: FilledButton.tonalIcon(
-              onPressed: busy ? null : _takeOverThread,
-              icon: const Icon(Icons.lock_open),
-              label: Text(context.t('takeOver')),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  context.t(
+                    threadServerReleased
+                        ? 'threadReleasedByServer'
+                        : 'activeThreadReadOnly',
+                  ),
+                  style: const TextStyle(color: Colors.white70),
+                ),
+                const SizedBox(height: 6),
+                FilledButton.tonalIcon(
+                  onPressed: busy
+                      ? null
+                      : threadServerReleased
+                      ? _continueReleasedThread
+                      : _takeOverThread,
+                  icon: const Icon(Icons.lock_open),
+                  label: Text(
+                    context.t(
+                      threadServerReleased ? 'continueThread' : 'takeOver',
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
       ],
@@ -323,6 +345,8 @@ extension _ThreadView on _RemoteHomePageState {
                         ? context.t('checkingAccess')
                         : _canEditThread
                         ? context.t('message')
+                        : threadServerReleased
+                        ? context.t('threadReleasedByServer')
                         : threadConflict
                         ? context.t('activeInAnotherApp')
                         : context.t('unableToSend'),

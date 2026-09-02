@@ -155,6 +155,7 @@ class _RemoteHomePageState extends State<RemoteHomePage>
   bool threadClaiming = false;
   bool threadOwned = false;
   bool threadConflict = false;
+  bool threadServerReleased = false;
   bool uploadingAttachments = false;
   int uploadingAttachmentIndex = 0;
   double attachmentProgress = 0;
