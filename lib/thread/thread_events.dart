@@ -42,13 +42,17 @@ extension _RemoteEvents on _RemoteHomePageState {
     final threadId = '${params['threadId'] ?? ''}';
     if (method == 'thread/released' &&
         threadId == selectedThread &&
-        threadConflict &&
-        !threadOwned &&
-        !threadClaiming) {
+        !locallyReleasingThreads.contains(threadId)) {
       _stopHistoryRefresh();
       setState(() {
+        threadOwned = false;
+        threadClaiming = false;
         threadConflict = true;
         threadServerReleased = true;
+        activeTurnId = '';
+        processingSummary = '';
+        processingItemId = '';
+        processingItems = [];
         message = context.t('threadReleasedByServer');
       });
     }

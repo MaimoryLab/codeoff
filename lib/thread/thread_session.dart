@@ -197,6 +197,7 @@ extension _ThreadSession on _RemoteHomePageState {
     threadConflict = false;
     threadServerReleased = false;
     if (!owned) return null;
+    locallyReleasingThreads.add(id);
     final release = _releaseThread(id);
     unawaited(release);
     return release;
@@ -275,6 +276,8 @@ extension _ThreadSession on _RemoteHomePageState {
     } catch (error) {
       pendingReleases.add(id);
       if (mounted) setState(() => message = error.toString());
+    } finally {
+      locallyReleasingThreads.remove(id);
     }
   }
 }

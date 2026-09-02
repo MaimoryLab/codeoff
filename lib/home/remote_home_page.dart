@@ -161,6 +161,7 @@ class _RemoteHomePageState extends State<RemoteHomePage>
   double attachmentProgress = 0;
   String? loadedHistoryFor;
   final pendingReleases = <String>{};
+  final locallyReleasingThreads = <String>{};
   final notifiedThreads = <String>{};
   List<PlatformFile> attachments = [];
   RemotePermissionMode permissionMode = RemotePermissionMode.requestApproval;
