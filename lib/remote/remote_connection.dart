@@ -21,6 +21,7 @@ class RemoteConnection {
   Future<void>? _recovery;
   RemoteApi? _client;
   String _endpoint = '';
+  List<String> _endpoints = const [];
   String _token = '';
 
   RemoteApi? get client => _client;
@@ -30,22 +31,32 @@ class RemoteConnection {
   Stream<Map<String, dynamic>> get events => _events.stream;
   Stream<RemoteConnectionStatus> get statuses => _statuses.stream;
 
-  Future<dynamic> connect(String endpoint, String token) async {
+  Future<dynamic> connect(
+    String endpoint,
+    String token, {
+    List<String>? endpoints,
+  }) async {
     await disconnect();
     _endpoint = endpoint;
+    _endpoints = endpoints ?? [endpoint];
     _token = token;
     _setStatus(RemoteConnectionStatus.connecting);
-    final client = _createClient(endpoint, token);
+    return _open(endpoint);
+  }
+
+  Future<dynamic> _open(String endpoint) async {
+    final client = _createClient(endpoint, _token);
     _client = client;
     try {
       final result = await client.status();
       if (!identical(_client, client)) return result;
       _listen(client);
       lastError = null;
+      _endpoint = endpoint;
       _setStatus(RemoteConnectionStatus.online);
       return result;
     } catch (_) {
-      if (identical(_client, client)) await disconnect();
+      if (identical(_client, client)) await _closeCurrent();
       rethrow;
     }
   }
@@ -63,25 +74,32 @@ class RemoteConnection {
   }
 
   Future<void> _recover() async {
-    var client = _client;
-    if (client == null) {
-      if (_endpoint.isEmpty || _token.isEmpty) return;
-      client = _createClient(_endpoint, _token);
-      _client = client;
-    }
+    if (_endpoint.isEmpty || _token.isEmpty) return;
+    final candidates = _endpoints.isEmpty ? [_endpoint] : _endpoints;
+    final current = _client;
+    final currentEndpoint = _endpoint;
     _setStatus(RemoteConnectionStatus.reconnecting);
-    try {
-      await client.reconnect();
-      await client.status();
-      if (!identical(_client, client)) return;
-      _listen(client);
-      lastError = null;
-      _setStatus(RemoteConnectionStatus.online);
-    } catch (error) {
-      if (!identical(_client, client)) return;
-      lastError = error;
-      _setStatus(RemoteConnectionStatus.offline);
+    for (final candidate in candidates) {
+      try {
+        if (current != null &&
+            candidate == currentEndpoint &&
+            identical(_client, current)) {
+          await current.reconnect();
+          await current.status();
+          if (!identical(_client, current)) return;
+          _listen(current);
+          lastError = null;
+          _setStatus(RemoteConnectionStatus.online);
+          return;
+        }
+        await _closeCurrent();
+        await _open(candidate);
+        return;
+      } catch (error) {
+        lastError = error;
+      }
     }
+    _setStatus(RemoteConnectionStatus.offline);
   }
 
   void _listen(RemoteApi client) {
@@ -105,13 +123,17 @@ class RemoteConnection {
 
   Future<void> disconnect() async {
     _recovery = null;
+    await _closeCurrent();
+    lastError = null;
+    _setStatus(RemoteConnectionStatus.offline);
+  }
+
+  Future<void> _closeCurrent() async {
     await _eventSubscription?.cancel();
     _eventSubscription = null;
     final client = _client;
     _client = null;
     await client?.close();
-    lastError = null;
-    _setStatus(RemoteConnectionStatus.offline);
   }
 
   Future<void> close() async {

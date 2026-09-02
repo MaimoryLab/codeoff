@@ -13,6 +13,25 @@ List<Map<String, String>> rememberRemoteConnection(
   ...connections.where((item) => item['serverId'] != record['serverId']),
 ];
 
+List<String> connectionEndpoints(Map<String, String> record) {
+  final value = record['endpoints'];
+  dynamic endpoints;
+  if (value != null && value.isNotEmpty) {
+    try {
+      endpoints = jsonDecode(value);
+    } on FormatException {
+      endpoints = null;
+    }
+  }
+  final candidates = endpoints is List
+      ? endpoints.whereType<String>()
+      : const <String>[];
+  return {
+    ...candidates,
+    if (record['endpoint']?.isNotEmpty == true) record['endpoint']!,
+  }.toList();
+}
+
 class ConnectionStore {
   ConnectionStore(this.storage);
 

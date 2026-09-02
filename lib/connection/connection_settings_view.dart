@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../i18n.dart';
+import '../storage/connection_store.dart';
 
 class ConnectionSettingsPage extends StatelessWidget {
   const ConnectionSettingsPage({
@@ -100,8 +101,8 @@ class ConnectionSettingsPage extends StatelessWidget {
     contentPadding: EdgeInsets.zero,
     title: Text(record['name'] ?? record['endpoint'] ?? ''),
     subtitle: Text(
-      record['endpoint'] ?? '',
-      maxLines: 1,
+      connectionEndpoints(record).join(', '),
+      maxLines: 2,
       overflow: TextOverflow.ellipsis,
     ),
     trailing: Row(

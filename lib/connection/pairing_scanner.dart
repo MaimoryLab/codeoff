@@ -111,7 +111,7 @@ extension _PairingScanner on _RemoteHomePageState {
     }
     await _disconnect();
     try {
-      await _connectRecord(candidate, token);
+      await _connectRecord(candidate, token, endpoints: payload.endpoints);
     } catch (error) {
       await _disconnect();
       throw _PairingFailure(error.toString());

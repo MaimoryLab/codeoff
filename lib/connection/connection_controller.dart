@@ -46,17 +46,35 @@ extension _ConnectionController on _RemoteHomePageState {
     String endpointValue,
     String token, {
     Map<String, dynamic>? pairing,
+    List<String>? endpoints,
   }) async {
-    final status = await remoteConnection.connect(endpointValue, token);
+    final known = connections.where(
+      (item) => item['endpoint'] == endpointValue,
+    );
+    final initialEndpoints =
+        endpoints ??
+        (known.isEmpty ? [endpointValue] : connectionEndpoints(known.first));
+    final status = await remoteConnection.connect(
+      endpointValue,
+      token,
+      endpoints: initialEndpoints,
+    );
     final server = _serverFrom(status);
     final serverId = '${server['id'] ?? pairing?['id'] ?? endpointValue}';
     final previous = connections.where((item) => item['serverId'] == serverId);
+    final savedEndpoints =
+        endpoints ??
+        {
+          if (previous.isNotEmpty) ...connectionEndpoints(previous.first),
+          endpointValue,
+        }.toList();
     final record = <String, String>{
       'serverId': serverId,
       'name': previous.isEmpty
           ? '${server['name'] ?? pairing?['name'] ?? endpointValue}'
           : previous.first['name']!,
       'endpoint': endpointValue,
+      'endpoints': jsonEncode(savedEndpoints),
       'token': token,
     };
     await connectionStore.remember(record);
@@ -173,9 +191,21 @@ extension _ConnectionController on _RemoteHomePageState {
   }
 
   Future<void> _connectSaved(Map<String, String> record) async {
-    endpoint.text = record['endpoint'] ?? '';
-    accessToken.text = record['token'] ?? '';
-    await connect();
+    await _run(context.t('connecting'), () async {
+      final token = record['token'] ?? '';
+      Object? lastError;
+      final candidates = connectionEndpoints(record);
+      for (final candidate in candidates) {
+        try {
+          await _disconnect();
+          await _connectRecord(candidate, token, endpoints: candidates);
+          return;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      if (lastError != null) throw lastError;
+    });
   }
 
   Future<void> _editConnection(Map<String, String> record) async {
@@ -241,7 +271,10 @@ extension _ConnectionController on _RemoteHomePageState {
     final addressChanged = record['endpoint'] != changed['endpoint'];
     if (wasActive && addressChanged) await _disconnect();
     if (!mounted) return;
-    final updated = await connectionStore.update(record, changed);
+    final updated = await connectionStore.update(record, {
+      ...changed,
+      'endpoints': jsonEncode([changed['endpoint']]),
+    });
     if (!mounted || updated == null) return;
     setState(() {});
     if (wasActive) {

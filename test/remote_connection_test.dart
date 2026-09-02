@@ -6,6 +6,28 @@ import 'package:codeoff/api.dart';
 import 'package:codeoff/remote/remote_connection.dart';
 
 void main() {
+  test('reconnects through saved endpoints in order', () async {
+    final endpoints = <String>[];
+    final connection = RemoteConnection(
+      '1.1.0',
+      createClient: (endpoint, _) {
+        endpoints.add(endpoint);
+        return _FallbackRemoteApi(endpoint);
+      },
+    );
+
+    await connection.connect(
+      'http://lan',
+      'token',
+      endpoints: ['http://lan', 'https://public'],
+    );
+    await connection.reconnect();
+
+    expect(endpoints, ['http://lan', 'https://public']);
+    expect(connection.status, RemoteConnectionStatus.online);
+    await connection.close();
+  });
+
   test('owns connection status, events, and reconnects', () async {
     final client = _FakeRemoteApi();
     final connection = RemoteConnection(
@@ -69,6 +91,31 @@ class _FakeRemoteApi extends RemoteApi {
     Duration retryDelay = const Duration(seconds: 1),
   }) async {
     reconnectCount++;
+  }
+
+  @override
+  Future<void> close() async {}
+}
+
+class _FallbackRemoteApi extends RemoteApi {
+  _FallbackRemoteApi(this.endpoint) : super(endpoint, clientVersion: '1.1.0');
+
+  final String endpoint;
+
+  @override
+  Stream<Map<String, dynamic>> events() => const Stream.empty();
+
+  @override
+  Future<dynamic> status() async => {
+    'server': {'id': 'server'},
+  };
+
+  @override
+  Future<void> reconnect({
+    int attempts = 3,
+    Duration retryDelay = const Duration(seconds: 1),
+  }) async {
+    if (endpoint == 'http://lan') throw ApiException('LAN unavailable');
   }
 
   @override
