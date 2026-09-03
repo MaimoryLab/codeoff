@@ -297,7 +297,7 @@ void main() {
     await server.close(force: true);
   });
 
-  test('does not expire heartbeat while a request is pending', () async {
+  test('expires heartbeat while a request is pending', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final connected = Completer<void>();
     server.listen((request) async {
@@ -317,12 +317,13 @@ void main() {
     );
     await connected.future;
     final pending = api.status();
-    await Future<void>.delayed(const Duration(milliseconds: 100));
-    expect(disconnected.isCompleted, false);
+    final pendingError = expectLater(pending, throwsA(isA<ApiException>()));
+    final error = await disconnected.future.timeout(const Duration(seconds: 2));
+    expect(error.toString(), contains('Heartbeat acknowledgement timed out'));
 
     await subscription.cancel();
     await api.close();
-    await expectLater(pending, throwsA(isA<ApiException>()));
+    await pendingError;
     await server.close(force: true);
   });
 

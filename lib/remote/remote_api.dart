@@ -98,12 +98,14 @@ class RemoteApi {
     required this.clientVersion,
     this.token,
     this.heartbeatInterval = const Duration(seconds: 10),
+    this.requestTimeout = const Duration(seconds: 30),
   }) : base = Uri.parse(endpoint.trim().replaceFirst(RegExp(r'/+$'), ''));
 
   final Uri base;
   final String clientVersion;
   String? token;
   final Duration heartbeatInterval;
+  final Duration requestTimeout;
   final _events = StreamController<Map<String, dynamic>>.broadcast();
   final _pending = <int, Completer<dynamic>>{};
   final _heartbeatRequests = <int>{};
@@ -311,7 +313,14 @@ class RemoteApi {
       _failConnection(socket, error);
       throw ApiException(error.toString());
     }
-    return completer.future;
+    try {
+      return await completer.future.timeout(requestTimeout);
+    } on TimeoutException {
+      _pending.remove(id);
+      final requestError = ApiException('Request timed out');
+      _failConnection(socket, requestError);
+      throw requestError;
+    }
   }
 
   Future<dynamic> _httpRequest(
@@ -574,10 +583,6 @@ class RemoteApi {
 
   void _sendHeartbeat(WebSocket socket) {
     if (!identical(_socket, socket)) return;
-    if (_pending.isNotEmpty) {
-      _resetHeartbeatTimeout();
-      return;
-    }
     if (_missedHeartbeatAcks >= 3) {
       _failConnection(
         socket,

@@ -118,4 +118,33 @@ void main() {
       );
     });
   }
+
+  test('times out stalled requests and closes the connection', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      request.response.headers
+        ..set('X-Codeoff-Server-Version', minServerVersion)
+        ..set('X-Codeoff-Min-Client-Version', _testVersion);
+      final socket = await WebSocketTransformer.upgrade(request);
+      socket.listen((_) {});
+    });
+    addTearDown(() => server.close(force: true));
+    final api = RemoteApi(
+      'http://${server.address.address}:${server.port}',
+      clientVersion: _testVersion,
+      requestTimeout: const Duration(milliseconds: 20),
+    );
+    addTearDown(api.close);
+
+    await expectLater(
+      api.status(),
+      throwsA(
+        isA<ApiException>().having(
+          (error) => error.message,
+          'message',
+          'Request timed out',
+        ),
+      ),
+    );
+  });
 }
