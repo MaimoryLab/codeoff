@@ -46,7 +46,8 @@ class ApiException implements Exception {
   bool get isConnectionFailure =>
       statusCode == null ||
       statusCode == HttpStatus.unauthorized ||
-      statusCode! >= HttpStatus.internalServerError;
+      (statusCode! >= HttpStatus.internalServerError &&
+          statusCode != HttpStatus.notImplemented);
 
   bool get isConflict => statusCode == HttpStatus.conflict;
 

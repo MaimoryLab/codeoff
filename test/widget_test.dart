@@ -286,6 +286,13 @@ void main() {
     final conflict = ApiException('conflict', statusCode: 409);
     expect(conflict.isConnectionFailure, false);
     expect(conflict.isConflict, true);
+    final unsupported = ApiException('not supported', statusCode: 501);
+    expect(unsupported.isConnectionFailure, false);
+    expect(unsupported.isConflict, false);
+    expect(
+      ApiException('bad gateway', statusCode: 502).isConnectionFailure,
+      true,
+    );
     expect(ApiException('offline').isConnectionFailure, true);
   });
 
