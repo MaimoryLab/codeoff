@@ -353,7 +353,7 @@ extension _ThreadController on _RemoteHomePageState {
               setState(() {
                 attachmentProgress = totalBytes == 0
                     ? 1
-                    : (bytesRead / totalBytes).clamp(0, 1).toDouble();
+                    : (bytesRead / totalBytes!).clamp(0, 1).toDouble();
               });
             },
           ),
