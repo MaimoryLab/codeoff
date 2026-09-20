@@ -2,6 +2,25 @@
 
 part of '../home/remote_home_page.dart';
 
+List<Map<String, dynamic>> updatePendingApprovals(
+  List<Map<String, dynamic>> approvals,
+  Map<String, dynamic> event,
+) {
+  final id = event['id'];
+  final method = '${event['method'] ?? ''}';
+  if (method == 'serverRequest/resolved') {
+    final params = event['params'];
+    if (params is Map) {
+      return approvals
+          .where((item) => item['id'] != params['requestId'])
+          .toList();
+    }
+  } else if ((id is int || id is String) && method.contains('Approval')) {
+    return [...approvals.where((item) => item['id'] != id), event];
+  }
+  return approvals;
+}
+
 List<Map<String, dynamic>> recordRemoteOperation(
   List<Map<String, dynamic>> items,
   Map<String, dynamic> operation,
@@ -56,12 +75,15 @@ extension _RemoteEvents on _RemoteHomePageState {
         message = context.t('threadReleasedByServer');
       });
     }
-    if (id is int && method.contains('Approval')) {
+    if (method == 'serverRequest/resolved') {
+      setState(() => approvals = updatePendingApprovals(approvals, event));
+    }
+    if ((id is int || id is String) && method.contains('Approval')) {
       final operation = threadId == selectedThread
           ? approvalOperationFrom(event)
           : null;
       setState(() {
-        approvals = [...approvals.where((item) => item['id'] != id), event];
+        approvals = updatePendingApprovals(approvals, event);
         if (operation != null &&
             !history.any((item) => item['id'] == operation['id'])) {
           history = [...history, operation];

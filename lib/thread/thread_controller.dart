@@ -431,7 +431,7 @@ extension _ThreadController on _RemoteHomePageState {
 
   Future<void> answer(Map<String, dynamic> event, String decision) async {
     final id = event['id'];
-    if (id is! int) return;
+    if (id is! int && id is! String) return;
     await _run(context.t('sendingDecision'), () async {
       await api!.approve(id, decision);
       if (mounted) {

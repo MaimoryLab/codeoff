@@ -17,6 +17,7 @@ import 'package:codeoff/home/remote_home_page.dart'
         filePathFromHref,
         recordRemoteOperation,
         startPeriodicRefresh,
+        updatePendingApprovals,
         updateRemoteThread;
 import 'package:codeoff/connection/pairing_payload.dart';
 import 'package:codeoff/file/file_preview.dart' show matchesEntryName;
@@ -37,6 +38,27 @@ Future<WebSocket> upgradeWebSocket(HttpRequest request) {
 class RealHttpOverrides extends HttpOverrides {}
 
 void main() {
+  test('tracks string approval IDs and server-side resolution', () {
+    final numeric = {'id': 0, 'method': 'item/fileChange/requestApproval'};
+    final text = {'id': '0', 'method': 'item/permissions/requestApproval'};
+    var approvals = updatePendingApprovals([], numeric);
+    approvals = updatePendingApprovals(approvals, text);
+    expect(approvals, [numeric, text]);
+    approvals = updatePendingApprovals(approvals, text);
+    expect(approvals, [numeric, text]);
+    approvals = updatePendingApprovals(approvals, {
+      'method': 'serverRequest/resolved',
+      'params': {'requestId': '0'},
+    });
+    expect(approvals, [numeric]);
+    expect(
+      updatePendingApprovals(approvals, {
+        'method': 'item/autoApprovalReview/completed',
+      }),
+      same(approvals),
+    );
+  });
+
   test('filters entries by the current directory name', () {
     expect(matchesEntryName('Source', 'our'), isTrue);
     expect(matchesEntryName('Source', 'OUR'), isTrue);

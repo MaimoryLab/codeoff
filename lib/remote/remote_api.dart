@@ -244,7 +244,10 @@ class RemoteApi {
           .toList(),
   };
 
-  Future<void> approve(int requestId, String decision) async {
+  Future<void> approve(Object requestId, String decision) async {
+    if (requestId is! int && requestId is! String) {
+      throw ArgumentError.value(requestId, 'requestId');
+    }
     await _request(
       'approval/respond',
       params: {'requestId': requestId, 'decision': decision},
