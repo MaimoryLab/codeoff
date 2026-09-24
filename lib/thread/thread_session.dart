@@ -51,6 +51,7 @@ extension _ThreadSession on _RemoteHomePageState {
 
   void _openThread(String id, {bool owned = false}) {
     _releaseSelectedThread(id);
+    pendingReleases.remove(id);
     _stopHistoryRefresh();
     setState(() {
       selectedThread = id;
