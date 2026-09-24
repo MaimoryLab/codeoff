@@ -198,7 +198,6 @@ extension _ThreadSession on _RemoteHomePageState {
     threadConflict = false;
     threadServerReleased = false;
     if (!owned) return null;
-    locallyReleasingThreads.add(id);
     final release = _releaseThread(id);
     unawaited(release);
     return release;
@@ -259,6 +258,13 @@ extension _ThreadSession on _RemoteHomePageState {
   }
 
   Future<void> _releaseThread(String id) async {
+    if (selectedThread == id && (threadOwned || threadClaiming)) {
+      pendingReleases.remove(id);
+      return;
+    }
+    // Reopening can cancel this intent while the request is still in flight.
+    pendingReleases.add(id);
+    if (!locallyReleasingThreads.add(id)) return;
     try {
       final client = api;
       if (client == null) throw ApiException('Not connected');
@@ -271,11 +277,8 @@ extension _ThreadSession on _RemoteHomePageState {
           threadClaiming = true;
           await _claimThread(selected);
         }
-      } else {
-        pendingReleases.add(id);
       }
     } catch (error) {
-      pendingReleases.add(id);
       if (mounted) setState(() => message = error.toString());
     } finally {
       locallyReleasingThreads.remove(id);

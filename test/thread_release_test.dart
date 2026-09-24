@@ -52,6 +52,37 @@ void main() {
     await _flush(tester);
     expect(api.releases, ['A', 'A', 'A']);
   });
+
+  for (final failed in [false, true]) {
+    testWidgets('ignores an obsolete release response (failed=$failed)', (
+      tester,
+    ) async {
+      final api = await _openApp(tester);
+      await tester.tap(find.text('Thread A').first);
+      await _flush(tester);
+      final response = api.releaseResponse = Completer<Map<String, dynamic>>();
+      await tester.tap(find.byTooltip('Back'));
+      await _flush(tester);
+      api.statusChanged();
+      await _flush(tester);
+      expect(api.releases, ['A']);
+      await tester.tap(find.text('Thread A').first);
+      await _flush(tester);
+      expect(api.resumes, ['A', 'A']);
+
+      // The old release finishes only after the thread has been reclaimed.
+      if (failed) {
+        response.completeError(ApiException('Delayed release failed'));
+      } else {
+        response.complete({'released': false});
+      }
+      await _flush(tester);
+      api.statusChanged();
+      await _flush(tester);
+      expect(api.releases, ['A']);
+      expect(find.text('Continue conversation'), findsNothing);
+    });
+  }
 }
 
 Future<_ThreadApi> _openApp(WidgetTester tester) async {
@@ -102,6 +133,7 @@ class _ThreadApi extends RemoteApi {
   final controller = StreamController<Map<String, dynamic>>.broadcast();
   final releases = <String>[];
   final resumes = <String>[];
+  Completer<Map<String, dynamic>>? releaseResponse;
 
   void statusChanged() => controller.add({
     'method': 'thread/status/changed',
@@ -157,8 +189,11 @@ class _ThreadApi extends RemoteApi {
   @override
   Future<dynamic> releaseThread(String threadId) async {
     releases.add(threadId);
+    final response = releaseResponse;
+    releaseResponse = null;
     // Active threads remain loaded after unsubscribe, so the server returns false.
     released();
+    if (response != null) return response.future;
     return {'released': false};
   }
 
